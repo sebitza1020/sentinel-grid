@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class DroneApiService {
   // ⚠️ Înlocuiește cu URL-ul tău de Render
-  private apiUrl = 'https://sentinel-api.onrender.com/api/drones'; 
+  private apiUrl = 'https://sentinel-api-kh1p.onrender.com/api/drones'; 
 
   constructor(private http: HttpClient) {}
 

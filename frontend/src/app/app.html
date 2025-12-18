@@ -1,39 +1,61 @@
-<div class="hud-overlay">
-  <h1>🛡️ SENTINEL GRID <span class="blink">LIVE</span></h1>
-  <button (click)="toggleAdmin()" class="btn-admin">
-    {{ showAdmin ? 'CLOSE ADMIN' : 'FLEET MANAGE' }}
-  </button>
-</div>
+<div class="app-container">
 
-<div id="map"></div>
+  <div class="sidebar" [class.sidebar-open]="showAdmin">
+    <div class="sidebar-header">
+      <h2>🛡️ FLEET COMMAND</h2>
+      <button class="btn-close" (click)="toggleAdmin()">×</button>
+    </div>
 
-<div class="admin-panel" *ngIf="showAdmin">
-  <h2>Fleet Management</h2>
+    <div class="sidebar-content">
+      <div class="panel-section deploy-section">
+        <h3>Deploy New Unit</h3>
+        <div class="form-grid">
+          <div class="input-group">
+            <label>Call Sign</label>
+            <input [(ngModel)]="newDrone.callSign" placeholder="e.g. Raptor-X">
+          </div>
+          <div class="input-group">
+            <label>Model Type</label>
+            <input [(ngModel)]="newDrone.model" placeholder="e.g. MQ-9 Reaper">
+          </div>
+        </div>
+        <button (click)="addDrone()" class="btn-deploy" [disabled]="!newDrone.callSign || !newDrone.model">
+          DEPLOY UNIT
+        </button>
+      </div>
 
-  <div class="form-group">
-    <input [(ngModel)]="newDrone.callSign" placeholder="Call Sign (ex: Raptor-1)">
-    <input [(ngModel)]="newDrone.model" placeholder="Model (ex: MQ-9)">
-    <button (click)="addDrone()">DEPLOY NEW DRONE</button>
+      <div class="panel-section list-section">
+        <h3>Active Units List ({{dbDrones.length}})</h3>
+
+        <div class="drone-list">
+          <div *ngIf="dbDrones.length === 0" class="loading-state">
+            Searching database... <br> <small>(If stuck, check CORS/Backend)</small>
+          </div>
+
+          <div class="drone-card" *ngFor="let d of dbDrones">
+            <div class="drone-info">
+              <span class="drone-callsign">{{ d.callSign }}</span>
+              <span class="drone-model">{{ d.model }}</span>
+              <span class="drone-status" [ngClass]="d.status.toLowerCase()">{{ d.status }}</span>
+            </div>
+            <button (click)="decommission(d.id)" class="btn-decommission" title="Decommission">
+              🗑️
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Call Sign</th>
-        <th>Model</th>
-        <th>Status</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let d of dbDrones">
-        <td>{{ d.callSign }}</td>
-        <td>{{ d.model }}</td>
-        <td>{{ d.status }}</td>
-        <td>
-          <button (click)="decommission(d.id)" class="btn-danger">DECOMMISSION</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <div class="main-content">
+    <div class="hud-overlay">
+      <h1>SENTINEL GRID <span class="blink">LIVE</span></h1>
+      <button (click)="toggleAdmin()" class="btn-hud-toggle">
+        ⚙️ MANAGE FLEET
+      </button>
+    </div>
+
+    <div id="map"></div>
+  </div>
+
 </div>
