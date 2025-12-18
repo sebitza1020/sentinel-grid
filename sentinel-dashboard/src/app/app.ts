@@ -3,10 +3,11 @@ import { CommonModule } from '@angular/common';
 import * as L from 'leaflet';
 import { TelemetryService } from './services/telemetry';
 import { DroneApiService } from './services/drone-api';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
