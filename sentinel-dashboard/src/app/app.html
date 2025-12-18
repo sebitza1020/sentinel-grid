@@ -1,5 +1,39 @@
 <div class="hud-overlay">
   <h1>🛡️ SENTINEL GRID <span class="blink">LIVE</span></h1>
-  <div class="stats">Active Drones: {{ objectKeys(drones).length }}</div>
+  <button (click)="toggleAdmin()" class="btn-admin">
+    {{ showAdmin ? 'CLOSE ADMIN' : 'FLEET MANAGE' }}
+  </button>
 </div>
+
 <div id="map"></div>
+
+<div class="admin-panel" *ngIf="showAdmin">
+  <h2>Fleet Management</h2>
+
+  <div class="form-group">
+    <input [(ngModel)]="newDrone.callSign" placeholder="Call Sign (ex: Raptor-1)">
+    <input [(ngModel)]="newDrone.model" placeholder="Model (ex: MQ-9)">
+    <button (click)="addDrone()">DEPLOY NEW DRONE</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Call Sign</th>
+        <th>Model</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let d of dbDrones">
+        <td>{{ d.callSign }}</td>
+        <td>{{ d.model }}</td>
+        <td>{{ d.status }}</td>
+        <td>
+          <button (click)="decommission(d.id)" class="btn-danger">DECOMMISSION</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

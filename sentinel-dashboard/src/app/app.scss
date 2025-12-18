@@ -1,29 +1,58 @@
-#map {
-  height: 100vh;
-  width: 100%;
-  z-index: 1;
-}
+/* ... stilurile existente ... */
 
-.hud-overlay {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 15px;
-  border-left: 5px solid red;
+.btn-admin {
+  background: #3388ff;
   color: white;
-  backdrop-filter: blur(5px);
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 10px;
 }
 
-.blink {
-  animation: blinker 1s linear infinite;
-  color: red;
-  font-size: 0.8em;
+.admin-panel {
+  position: absolute;
+  top: 100px;
+  left: 20px;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid #3388ff;
+  padding: 20px;
+  color: #fff;
+  width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
-@keyframes blinker {
-  50% {
-    opacity: 0;
-  }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+th,
+td {
+  border-bottom: 1px solid #444;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  color: #3388ff;
+}
+
+.form-group input {
+  padding: 8px;
+  margin-right: 5px;
+  background: #222;
+  border: 1px solid #555;
+  color: white;
+  width: 120px;
+}
+
+.btn-danger {
+  background: #ff3333;
+  color: white;
+  border: none;
+  cursor: pointer;
 }
