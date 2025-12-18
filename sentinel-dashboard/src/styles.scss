@@ -1,0 +1,13 @@
+/* Importăm CSS-ul Leaflet direct */
+@import 'leaflet/dist/leaflet.css';
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Roboto', sans-serif;
+  background-color: #1a1a1a;
+  /* Dark Mode pentru Defense */
+  color: #e0e0e0;
+}
