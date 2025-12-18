@@ -42,20 +42,42 @@ export class App implements OnInit {
   }
 
   loadDrones() {
-    this.apiService.getAll().subscribe(data => this.dbDrones = data);
+    this.apiService.getAll().subscribe({
+      next: (data) => {
+        this.dbDrones = data;
+      },
+      error: (err) => {
+        console.error('Error loading drones:', err);
+      }
+    });
   }
 
   addDrone() {
-    this.apiService.create(this.newDrone).subscribe(() => {
-      alert('Drone deployed!');
-      this.newDrone = { callSign: '', model: '', batteryCapacity: 5000 }; // Reset
-      this.loadDrones();
+    this.apiService.create(this.newDrone).subscribe({
+      next: () => {
+        alert('Drone deployed!');
+        this.newDrone = { callSign: '', model: '', batteryCapacity: 5000 }; // Reset
+        this.loadDrones();
+      },
+      error: (err) => {
+        console.error('Error deploying drone:', err);
+        alert('Failed to deploy drone: ' + (err.error?.message || err.message || 'Unknown error'));
+      }
     });
   }
 
   decommission(id: string) {
     if(confirm('Are you sure you want to decommission this unit?')) {
-      this.apiService.delete(id).subscribe(() => this.loadDrones());
+      this.apiService.delete(id).subscribe({
+        next: () => {
+          alert('Drone decommissioned successfully');
+          this.loadDrones();
+        },
+        error: (err) => {
+          console.error('Error decommissioning drone:', err);
+          alert('Failed to decommission drone: ' + (err.error?.message || err.message || 'Unknown error'));
+        }
+      });
     }
   }
 
