@@ -95,4 +95,37 @@ public class TelemetrieResource {
 
         return Response.ok().build();
     }
+
+    @PUT
+    @Path("/{id}")
+    @Transactional
+    public Response updateDrone(@PathParam("id") UUID id, Drone droneUpdate) {
+        Drone entity = Drone.findById(id);
+        if (entity == null) {
+            return Response.status(404).build();
+        }
+
+        // Actualizăm câmpurile permise
+        if (droneUpdate.model != null)
+            entity.model = droneUpdate.model;
+        if (droneUpdate.status != null)
+            entity.status = droneUpdate.status;
+        if (droneUpdate.callSign != null)
+            entity.callSign = droneUpdate.callSign;
+
+        return Response.ok(entity).build();
+    }
+
+    @DELETE
+    @Path("/{id}")
+    @Transactional
+    public Response deleteDrone(@PathParam("id") UUID id) {
+        boolean deleted = Drone.deleteById(id);
+        if (!deleted) {
+            return Response.status(404).build();
+        }
+        // Opțional: Aici ai putea șterge și din Firebase, dar lăsăm asta pentru
+        // simplitate
+        return Response.noContent().build();
+    }
 }
