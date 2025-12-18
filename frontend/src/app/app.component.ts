@@ -97,7 +97,6 @@ export class AppComponent implements OnInit {
     if (!this.newDrone.callSign || !this.newDrone.model) return;
 
     this.isLoading = true;
-    // Completăm obiectul cu default-uri pentru Backend
     const payload = {
       callSign: this.newDrone.callSign,
       model: this.newDrone.model,
@@ -107,14 +106,16 @@ export class AppComponent implements OnInit {
 
     this.apiService.create(payload).subscribe({
       next: (resp) => {
-        alert(`Unit ${resp.callSign} deployed successfully!`);
-        this.newDrone = { callSign: '', model: '' }; // Reset form
-        this.loadDrones(); // Refresh list
+        this.dbDrones.push(resp);
+
+        this.newDrone = { callSign: '', model: '' }; 
         this.isLoading = false;
+        
+        console.log(`Unit ${resp.callSign} deployed successfully!`);
       },
       error: (err) => {
         console.error(err);
-        alert(`DEPLOY FAILED: ${err.message || 'CORS/Backend Error'}`);
+        alert(`DEPLOY FAILED: ${err.message}`);
         this.isLoading = false;
       }
     });
@@ -122,11 +123,18 @@ export class AppComponent implements OnInit {
 
   decommission(id: string) {
     if (confirm('⚠️ WARNING: Confirm decommissioning of this unit?')) {
+      
+      const backupList = [...this.dbDrones];
+      this.dbDrones = this.dbDrones.filter(d => d.id !== id);
+
       this.apiService.delete(id).subscribe({
         next: () => {
-          this.loadDrones();
+          console.log('Unit decommissioned confirmed by HQ.');
         },
-        error: (err) => alert('Decommission failed: ' + err.message)
+        error: (err) => {
+          alert('Decommission failed: ' + err.message);
+          this.dbDrones = backupList;
+        }
       });
     }
   }
