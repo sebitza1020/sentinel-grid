@@ -154,10 +154,11 @@ export class AppComponent implements OnInit {
       // Trimitem la Backend
       this.apiService.sendTelemetry(drone.callSign, payload).subscribe({
         next: () => console.log(`📡 Ping sent for ${drone.callSign}`),
-        error: (err) => console.error('Ping failed:', err)
+        // Adăugăm un handling mic pentru erori în consolă ca să nu sperie
+        error: (err) => console.warn('Ping skipped (Rate Limit/Network):', err.status)
       });
 
-    }, 3000); // 3000ms = 3 secunde
+    }, 12000);
   }
 
   stopSimulation(drone: any) {
