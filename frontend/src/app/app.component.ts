@@ -30,6 +30,10 @@ export class AppComponent implements OnInit {
 
   loginData = { username: '', password: '' };
 
+  selectedDroneId: string | null = null;
+  flightVectors: { [key: string]: { targetLat: number, targetLng: number } } = {};
+  flightPaths: { [key: string]: L.Polyline } = {};
+
   constructor(
     private telemetryService: TelemetryService,
     private apiService: DroneApiService,
@@ -59,10 +63,41 @@ export class AppComponent implements OnInit {
 
   // --- MAP LOGIC ---
   private initMap(): void {
-    this.map = L.map('map').setView([44.4268, 26.1025], 13); // Centrat pe București
+    this.map = L.map('map').setView([44.4268, 26.1025], 13);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '© OpenStreetMap & CartoDB',
       maxZoom: 19
+    }).addTo(this.map);
+
+    // --- ASCULTĂ CLICK-URILE PE HARTĂ ---
+    this.map.on('click', (e: any) => {
+      if (this.selectedDroneId) {
+        this.setWayPoint(this.selectedDroneId, e.latlng.lat, e.latlng.lng);
+      }
+    });
+  }
+
+  setWayPoint(droneId: string, lat: number, lng: number) {
+    console.log(`📍 New Waypoint for ${droneId}: [${lat}, ${lng}]`);
+    
+    // 1. Salvăm ținta
+    this.flightVectors[droneId] = { targetLat: lat, targetLng: lng };
+
+    // 2. Desenăm linia pe hartă (Feedback Vizual)
+    // Mai întâi ștergem linia veche dacă există
+    if (this.flightPaths[droneId]) {
+      this.flightPaths[droneId].remove();
+    }
+
+    // Găsim poziția curentă a dronei (din marker)
+    const currentPos = this.markers[droneId] ? this.markers[droneId].getLatLng() : this.map.getCenter();
+
+    // Desenăm linia punctată spre țintă
+    this.flightPaths[droneId] = L.polyline([currentPos, [lat, lng]], {
+      color: '#00f3ff',
+      weight: 2,
+      dashArray: '5, 10', // Linie punctată
+      opacity: 0.7
     }).addTo(this.map);
   }
 
@@ -142,42 +177,83 @@ export class AppComponent implements OnInit {
   }
 
   startSimulation(drone: any) {
-    console.log(`🚀 Starting simulation for ${drone.callSign}`);
-    let angle = 0;
-    const centerLat = 44.4268;
-    const centerLng = 26.1025;
-    const radius = 0.02; // Raza cercului de patrulare
+    console.log(`🚀 Manual Control Active for ${drone.callSign}`);
+    
+    // O selectăm automat când apăsăm Play
+    this.selectedDroneId = drone.id;
+    
+    // Poziția inițială (dacă nu are, pornește din centru)
+    let currentLat = 44.4268;
+    let currentLng = 26.1025;
 
-    // Pornim timer-ul (la fiecare 3 secunde)
+    // Dacă drona e deja pe hartă, plecăm de acolo
+    if (this.markers[drone.id]) {
+      const pos = this.markers[drone.id].getLatLng();
+      currentLat = pos.lat;
+      currentLng = pos.lng;
+    }
+
+    // Intervalul de simulare (15 secunde pentru Gemini)
     this.simulationIntervals[drone.id] = setInterval(() => {
-      angle += 0.2; // Avansăm unghiul
       
-      // Calculăm noua poziție (cerc)
-      const lat = centerLat + (Math.sin(angle) * radius);
-      const lng = centerLng + (Math.cos(angle) * radius);
+      // VERIFICĂM DACĂ AVEM O ȚINTĂ (Waypoint)
+      const vector = this.flightVectors[drone.id];
 
-      // Scenariu Random: 1 din 5 șanse să vadă ceva periculos
+      if (vector) {
+        // --- LOGICA DE MIȘCARE SPRE ȚINTĂ ---
+        // Calculăm distanța rămasă
+        const distLat = vector.targetLat - currentLat;
+        const distLng = vector.targetLng - currentLng;
+        
+        // Viteza de deplasare (aproximativ 20% din distanță per "tick" sau un pas fix)
+        // Pentru demo, facem pași mai mari să se vadă mișcarea
+        const step = 0.002; 
+        
+        // Dacă suntem foarte aproape, ne oprim
+        if (Math.abs(distLat) < 0.0005 && Math.abs(distLng) < 0.0005) {
+          console.log('Target reached. Holding position.');
+          // Putem șterge linia
+          if (this.flightPaths[drone.id]) this.flightPaths[drone.id].remove();
+        } else {
+          // Ne mișcăm spre țintă
+          // Normalizăm vectorul (direcția)
+          const angle = Math.atan2(distLat, distLng);
+          currentLat += Math.sin(angle) * step;
+          currentLng += Math.cos(angle) * step;
+          
+          // Actualizăm linia vizuală (să plece din noua poziție)
+          if (this.flightPaths[drone.id]) {
+            this.flightPaths[drone.id].setLatLngs([[currentLat, currentLng], [vector.targetLat, vector.targetLng]]);
+          }
+        }
+
+      } else {
+        // --- LOGICA VECHE (CERC) - FALLBACK DACĂ NU DAI CLICK ---
+        // (Opțional: Poți lăsa drona să stea pe loc dacă nu are țintă)
+        currentLat += (Math.random() - 0.5) * 0.001;
+        currentLng += (Math.random() - 0.5) * 0.001;
+      }
+
+      // --- SCENARIU THREAT & AI --- (Rămâne neschimbat)
       const isThreat = Math.random() > 0.8;
       const reportText = isThreat 
         ? "Visual contact: Armed convoy moving towards civilian sector." 
-        : "Sector clear. Patrolling assigned perimeter.";
+        : "Sector clear. En route to waypoint.";
 
       const payload = {
-        lat: lat,
-        lng: lng,
+        lat: currentLat,
+        lng: currentLng,
         alt: 150 + Math.random() * 50,
         battery: Math.floor(Math.random() * 100),
         report: reportText
       };
 
-      // Trimitem la Backend
       this.apiService.sendTelemetry(drone.callSign, payload).subscribe({
-        next: () => console.log(`📡 Ping sent for ${drone.callSign}`),
-        // Adăugăm un handling mic pentru erori în consolă ca să nu sperie
-        error: (err) => console.warn('Ping skipped (Rate Limit/Network):', err.status)
+        next: () => console.log(`📡 Telemetry sent`),
+        error: (err) => console.warn('Telemetry skipped:', err.status)
       });
 
-    }, 15000);
+    }, 15000); // 15 secunde
   }
 
   stopSimulation(drone: any) {
