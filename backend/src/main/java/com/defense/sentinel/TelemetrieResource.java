@@ -1,5 +1,6 @@
 package com.defense.sentinel;
 
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
@@ -100,6 +101,7 @@ public class TelemetrieResource {
     @PUT
     @Path("/{id}")
     @Transactional
+    @RolesAllowed("COMMANDER")
     public Response updateDrone(@PathParam("id") UUID id, Drone droneUpdate) {
         Drone entity = Drone.findById(id);
         if (entity == null) {
@@ -120,6 +122,7 @@ public class TelemetrieResource {
     @DELETE
     @Path("/{id}")
     @Transactional
+    @RolesAllowed("COMMANDER")
     public Response deleteDrone(@PathParam("id") UUID id) {
         boolean deleted = Drone.deleteById(id);
         if (!deleted) {
