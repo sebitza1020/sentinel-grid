@@ -54,21 +54,54 @@ export class AppComponent implements OnInit {
   }
 
   private updateMarkers(drones: any) {
-    // ... Logica ta existentă de markeri rămâne neschimbată ...
-    // Dacă ai nevoie de ea, spune-mi, dar presupun că e deja acolo din codul vechi
     Object.keys(drones).forEach(key => {
-        const d = drones[key];
-        if (this.markers[key]) {
-            this.markers[key].setLatLng([d.lat, d.lng]);
-            // Update popup content if needed
-        } else {
-            const marker = L.circleMarker([d.lat, d.lng], {
-                color: d.threat_level === 'THREAT' ? '#ff003c' : '#00f3ff',
-                radius: 8
-            }).addTo(this.map);
-            marker.bindPopup(`<b>${key}</b><br>Status: ${d.threat_level || 'Active'}`);
-            this.markers[key] = marker;
-        }
+      const d = drones[key];
+      // Determinăm culoarea în funcție de amenințare
+      const isThreat = d.threat_level === 'THREAT';
+      const color = isThreat ? '#ff003c' : '#00f3ff'; // Roșu vs Cyan
+      const pulseClass = isThreat ? 'pulse-red' : ''; // Opțional: clasă CSS pentru pulsare
+
+      if (this.markers[key]) {
+        // CAZUL 1: Drona există deja pe hartă
+        
+        // A. Actualizăm Poziția
+        this.markers[key].setLatLng([d.lat, d.lng]);
+        
+        // B. Actualizăm Culoarea (Aici era problema!)
+        // Leaflet CircleMarker folosește setStyle pentru culori
+        this.markers[key].setStyle({ color: color, fillColor: color });
+
+        // C. Actualizăm Popup-ul (Textul)
+        const popupContent = `
+          <div style="text-align: center">
+            <b style="color: ${color}; font-size: 1.1em">${key}</b><br>
+            Status: <b>${d.threat_level || 'ANALYZING...'}</b><br>
+            <hr style="border-color: #444; margin: 5px 0;">
+            <small style="color: #ccc">${d.report || 'No report'}</small>
+          </div>
+        `;
+        this.markers[key].setPopupContent(popupContent);
+
+      } else {
+        // CAZUL 2: Drona apare prima dată
+        const marker = L.circleMarker([d.lat, d.lng], {
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.5,
+          radius: 10,
+          weight: 2
+        }).addTo(this.map);
+
+        const popupContent = `
+          <div style="text-align: center">
+            <b style="color: ${color}; font-size: 1.1em">${key}</b><br>
+            Status: <b>${d.threat_level || 'Active'}</b>
+          </div>
+        `;
+        
+        marker.bindPopup(popupContent);
+        this.markers[key] = marker;
+      }
     });
   }
 
