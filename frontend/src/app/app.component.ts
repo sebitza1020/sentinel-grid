@@ -158,7 +158,7 @@ export class AppComponent implements OnInit {
         error: (err) => console.warn('Ping skipped (Rate Limit/Network):', err.status)
       });
 
-    }, 12000);
+    }, 15000);
   }
 
   stopSimulation(drone: any) {
