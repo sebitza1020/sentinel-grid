@@ -36,7 +36,15 @@
             <div class="drone-info">
               <span class="drone-callsign">{{ d.callSign }}</span>
               <span class="drone-model">{{ d.model }}</span>
-              <span class="drone-status" [ngClass]="d.status.toLowerCase()">{{ d.status }}</span>
+              <div class="status-row">
+                <span class="drone-status" [ngClass]="d.status?.toLowerCase()">
+                  {{ d.status || 'OFFLINE' }}
+                </span>
+                <button (click)="toggleSimulation(d)" class="btn-sim" [class.active]="isSimulating(d.id)"
+                  [title]="isSimulating(d.id) ? 'Stop Patrol' : 'Start Auto-Patrol'">
+                  {{ isSimulating(d.id) ? '⏹' : '▶' }}
+                </button>
+              </div>
             </div>
             <button (click)="decommission(d.id)" class="btn-decommission" title="Decommission">
               🗑️

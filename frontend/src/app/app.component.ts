@@ -24,6 +24,9 @@ export class AppComponent implements OnInit {
   dbDrones: any[] = [];
   newDrone: any = { callSign: '', model: '' }; // Model simplificat pentru formular
 
+  // Dicționar pentru a ține minte care dronă zboară (ID -> Interval Timer)
+  simulationIntervals: { [key: string]: any } = {};
+
   constructor(
     private telemetryService: TelemetryService,
     private apiService: DroneApiService
@@ -75,6 +78,66 @@ export class AppComponent implements OnInit {
     if (this.showAdmin) {
       this.loadDrones();
     }
+  }
+
+  // --- SIMULATION LOGIC ---
+  toggleSimulation(drone: any) {
+    if (this.simulationIntervals[drone.id]) {
+      this.stopSimulation(drone);
+    } else {
+      this.startSimulation(drone);
+    }
+  }
+
+  startSimulation(drone: any) {
+    console.log(`🚀 Starting simulation for ${drone.callSign}`);
+    let angle = 0;
+    const centerLat = 44.4268;
+    const centerLng = 26.1025;
+    const radius = 0.02; // Raza cercului de patrulare
+
+    // Pornim timer-ul (la fiecare 3 secunde)
+    this.simulationIntervals[drone.id] = setInterval(() => {
+      angle += 0.2; // Avansăm unghiul
+      
+      // Calculăm noua poziție (cerc)
+      const lat = centerLat + (Math.sin(angle) * radius);
+      const lng = centerLng + (Math.cos(angle) * radius);
+
+      // Scenariu Random: 1 din 5 șanse să vadă ceva periculos
+      const isThreat = Math.random() > 0.8;
+      const reportText = isThreat 
+        ? "Visual contact: Armed convoy moving towards civilian sector." 
+        : "Sector clear. Patrolling assigned perimeter.";
+
+      const payload = {
+        lat: lat,
+        lng: lng,
+        alt: 150 + Math.random() * 50,
+        battery: Math.floor(Math.random() * 100),
+        report: reportText
+      };
+
+      // Trimitem la Backend
+      this.apiService.sendTelemetry(drone.callSign, payload).subscribe({
+        next: () => console.log(`📡 Ping sent for ${drone.callSign}`),
+        error: (err) => console.error('Ping failed:', err)
+      });
+
+    }, 3000); // 3000ms = 3 secunde
+  }
+
+  stopSimulation(drone: any) {
+    console.log(`🛑 Stopping simulation for ${drone.callSign}`);
+    if (this.simulationIntervals[drone.id]) {
+      clearInterval(this.simulationIntervals[drone.id]);
+      delete this.simulationIntervals[drone.id];
+    }
+  }
+
+  // Helper pentru UI: verifică dacă o dronă e în zbor
+  isSimulating(id: string): boolean {
+    return !!this.simulationIntervals[id];
   }
 
   loadDrones() {
