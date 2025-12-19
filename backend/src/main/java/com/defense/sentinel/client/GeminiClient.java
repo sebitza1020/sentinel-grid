@@ -10,6 +10,6 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 public interface GeminiClient {
 
   @POST
-  @Path("/models/gemini-3-flash-preview:generateContent")
+  @Path("/models/gemini-2.5-flash:generateContent")
   GeminiDTOs.Response generate(@QueryParam("key") String apiKey, GeminiDTOs.Request request);
 }
