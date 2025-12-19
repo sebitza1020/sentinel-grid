@@ -7,48 +7,48 @@
     </div>
 
     <div class="sidebar-content">
-      <div class="panel-section deploy-section">
-        <h3>Deploy New Unit</h3>
-        <div class="form-grid">
-          <div class="input-group">
-            <label>Call Sign</label>
-            <input [(ngModel)]="newDrone.callSign" placeholder="e.g. Raptor-X">
-          </div>
-          <div class="input-group">
-            <label>Model Type</label>
-            <input [(ngModel)]="newDrone.model" placeholder="e.g. MQ-9 Reaper">
-          </div>
+    
+      <div *ngIf="!(authService.isLoggedIn$ | async)" class="login-section">
+        <h3>🔒 SECURITY CLEARANCE REQUIRED</h3>
+        <p class="warning-text">Authorized Personnel Only</p>
+    
+        <div class="input-group">
+          <label>Commander ID</label>
+          <input [(ngModel)]="loginData.username" placeholder="Enter ID">
         </div>
-        <button (click)="addDrone()" class="btn-deploy" [disabled]="!newDrone.callSign || !newDrone.model">
-          DEPLOY UNIT
-        </button>
+        <div class="input-group">
+          <label>Access Code</label>
+          <input [(ngModel)]="loginData.password" type="password" placeholder="Enter Code">
+        </div>
+    
+        <button (click)="doLogin()" class="btn-login">AUTHENTICATE</button>
       </div>
-
-      <div class="panel-section list-section">
-        <h3>Active Units List ({{dbDrones.length}})</h3>
-
-        <div class="drone-list">
-          <div *ngIf="dbDrones.length === 0" class="loading-state">
-            Searching database... <br> <small>(If stuck, check CORS/Backend)</small>
-          </div>
-
-          <div class="drone-card" *ngFor="let d of dbDrones">
-            <div class="drone-info">
-              <span class="drone-callsign">{{ d.callSign }}</span>
-              <span class="drone-model">{{ d.model }}</span>
-              <div class="status-row">
-                <span class="drone-status" [ngClass]="d.status?.toLowerCase()">
-                  {{ d.status || 'OFFLINE' }}
-                </span>
-                <button (click)="toggleSimulation(d)" class="btn-sim" [class.active]="isSimulating(d.id)"
-                  [title]="isSimulating(d.id) ? 'Stop Patrol' : 'Start Auto-Patrol'">
-                  {{ isSimulating(d.id) ? '⏹' : '▶' }}
-                </button>
-              </div>
+    
+      <div *ngIf="authService.isLoggedIn$ | async">
+        <button (click)="doLogout()" class="btn-logout">LOGOUT COMMANDER</button>
+    
+        <div class="panel-section deploy-section">
+          <h3>Deploy New Unit</h3>
+          <div class="form-grid">
+            <div class="input-group">
+              <label>Call Sign</label>
+              <input [(ngModel)]="newDrone.callSign">
             </div>
-            <button (click)="decommission(d.id)" class="btn-decommission" title="Decommission">
-              🗑️
-            </button>
+            <div class="input-group">
+              <label>Model Type</label>
+              <input [(ngModel)]="newDrone.model">
+            </div>
+          </div>
+          <button (click)="addDrone()" class="btn-deploy">DEPLOY UNIT</button>
+        </div>
+    
+        <div class="panel-section list-section">
+          <div class="drone-list">
+            <div class="drone-card" *ngFor="let d of dbDrones">
+              <span class="drone-callsign">{{ d.callSign }}</span>
+              <button (click)="toggleSimulation(d)" class="btn-sim">{{ isSimulating(d.id) ? '⏹' : '▶' }}</button>
+              <button (click)="decommission(d.id)" class="btn-decommission">🗑️</button>
+            </div>
           </div>
         </div>
       </div>

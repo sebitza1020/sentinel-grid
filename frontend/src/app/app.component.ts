@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DroneApiService } from './services/drone-api.service';
 import { TelemetryService } from './services/telemetry.service';
 import * as L from 'leaflet';
+import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -27,10 +28,28 @@ export class AppComponent implements OnInit {
   // Dicționar pentru a ține minte care dronă zboară (ID -> Interval Timer)
   simulationIntervals: { [key: string]: any } = {};
 
+  loginData = { username: '', password: '' };
+
   constructor(
     private telemetryService: TelemetryService,
-    private apiService: DroneApiService
-  ) {}
+    private apiService: DroneApiService,
+    public authService: AuthService
+  ) { }
+  
+  doLogin() {
+    this.authService.login(this.loginData.username, this.loginData.password).subscribe({
+      next: () => {
+        alert('ACCESS GRANTED. Welcome back, Commander.');
+        this.loadDrones(); // Încărcăm datele după login
+      },
+      error: () => alert('ACCESS DENIED. Invalid credentials.')
+    });
+  }
+
+  doLogout() {
+    this.authService.logout();
+    this.dbDrones = []; // Golim lista vizual
+  }
 
   ngOnInit() {
     this.initMap();
