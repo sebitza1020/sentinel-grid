@@ -110,49 +110,69 @@ export class AppComponent implements OnInit {
   private updateMarkers(drones: any) {
     Object.keys(drones).forEach(key => {
       const d = drones[key];
-      // Determinăm culoarea în funcție de amenințare
       const isThreat = d.threat_level === 'THREAT';
-      const color = isThreat ? '#ff003c' : '#00f3ff'; // Roșu vs Cyan
-      const pulseClass = isThreat ? 'pulse-red' : ''; // Opțional: clasă CSS pentru pulsare
-
-      if (this.markers[key]) {
-        // CAZUL 1: Drona există deja pe hartă
+      const color = isThreat ? '#ff003c' : '#00f3ff';
+      
+      // --- LOGICA NOUĂ PENTRU IMAGINE ---
+      let imageHtml = '';
+      if (isThreat && d.report) {
+        // 1. Extragem partea esențială din raport (scoatem "Visual contact:")
+        // Ex: "Visual contact: Armed convoy" devine "Armed convoy"
+        let cleanPrompt = d.report.replace('Visual contact:', '').trim();
         
-        // A. Actualizăm Poziția
-        this.markers[key].setLatLng([d.lat, d.lng]);
-        
-        // B. Actualizăm Culoarea (Aici era problema!)
-        // Leaflet CircleMarker folosește setStyle pentru culori
-        this.markers[key].setStyle({ color: color, fillColor: color });
+        // 2. Adăugăm "condimente" pentru a arăta a imagine de spionaj militar
+        cleanPrompt += ' drone surveillance view night vision grainy';
 
-        // C. Actualizăm Popup-ul (Textul)
-        const popupContent = `
-          <div style="text-align: center">
-            <b style="color: ${color}; font-size: 1.1em">${key}</b><br>
-            Status: <b>${d.threat_level || 'ANALYZING...'}</b><br>
-            <hr style="border-color: #444; margin: 5px 0;">
-            <small style="color: #ccc">${d.report || 'No report'}</small>
+        // 3. Codificăm URL-ul (ca să meargă spațiile etc.)
+        const encodedPrompt = encodeURIComponent(cleanPrompt);
+        // Folosim serviciul Pollinations.ai (gratuit, prin URL)
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=300&height=200&nologo=true`;
+        
+        // 4. Construim HTML-ul imaginii
+        imageHtml = `
+          <div style="margin-top: 10px; position: relative;">
+            <img src="${imageUrl}" alt="Recon Image" 
+                  style="width: 100%; border-radius: 4px; border: 2px solid ${color}; min-height: 150px; background: #222;">
+            <div style="position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.7); color: ${color}; font-size: 0.7em; padding: 2px 5px;">
+                AI RECON SIMULATION
+            </div>
           </div>
         `;
-        this.markers[key].setPopupContent(popupContent);
+      }
+      // ----------------------------------
 
+      // Construim conținutul popup-ului (cu tot cu imagine, dacă există)
+      const popupContent = `
+          <div style="text-align: center; min-width: 200px;">
+            <b style="color: ${color}; font-size: 1.2em; letter-spacing: 1px;">${key.toUpperCase()}</b><br>
+            Status: <b style="color: ${color}">${d.threat_level || 'ANALYZING...'}</b><br>
+            
+            ${imageHtml} <hr style="border-color: rgba(255,255,255,0.2); margin: 10px 0;">
+            <small style="color: #ccc; font-style: italic;">"${d.report || 'No report'}"</small>
+          </div>
+        `;
+
+      if (this.markers[key]) {
+        // CAZUL 1: Drona există - Update
+        this.markers[key].setLatLng([d.lat, d.lng]);
+        this.markers[key].setStyle({ color: color, fillColor: color });
+        // Doar actualizăm conținutul popup-ului dacă e deschis
+        if (this.markers[key].isPopupOpen()) {
+          this.markers[key].getPopup()?.setContent(popupContent);
+        } else {
+          // Altfel îl setăm pentru când va fi deschis
+          this.markers[key].setPopupContent(popupContent);
+        }
       } else {
-        // CAZUL 2: Drona apare prima dată
+        // CAZUL 2: Drona nouă - Creare
         const marker = L.circleMarker([d.lat, d.lng], {
           color: color,
           fillColor: color,
-          fillOpacity: 0.5,
-          radius: 10,
-          weight: 2
+          fillOpacity: 0.7,
+          radius: 12,
+          weight: 3
         }).addTo(this.map);
 
-        const popupContent = `
-          <div style="text-align: center">
-            <b style="color: ${color}; font-size: 1.1em">${key}</b><br>
-            Status: <b>${d.threat_level || 'Active'}</b>
-          </div>
-        `;
-        
         marker.bindPopup(popupContent);
         this.markers[key] = marker;
       }
