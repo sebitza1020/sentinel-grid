@@ -101,8 +101,11 @@ cd backend
 # DATABASE_URL=jdbc:postgresql://...
 # FIREBASE_URL=...
 
-# Requires a local Ollama instance with the model pulled:
+# AI runs on Ollama. For local dev, pull the model and run it:
 #   ollama pull gemma4:12b   (served at http://localhost:11434)
+# In other environments, override via env vars:
+#   OLLAMA_API_URL=http://<host>:11434/api   (default: http://localhost:11434/api)
+#   OLLAMA_MODEL=gemma4:12b
 
 ./mvnw quarkus:dev
 ```
