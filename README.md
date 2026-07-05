@@ -3,11 +3,11 @@
 ![Project Status](https://img.shields.io/badge/Status-Operational-success)
 ![Java](https://img.shields.io/badge/Backend-Quarkus-red)
 ![Angular](https://img.shields.io/badge/Frontend-Angular_18-dd0031)
-![AI](https://img.shields.io/badge/AI-Gemini_2.5_Flash-blue)
+![AI](https://img.shields.io/badge/AI-Ollama_gemma4:12b-blue)
 
 **Sentinel Grid** is a full-stack, distributed surveillance system designed to manage autonomous drone fleets, analyze telemetry in real-time using Generative AI, and trigger strategic alerts for detected threats.
 
-Built with a microservices architecture, it leverages **Quarkus** for high-performance backend processing, **Angular** for the tactical dashboard, and **Google Gemini 2.5 Flash** for intelligent threat analysis.
+Built with a microservices architecture, it leverages **Quarkus** for high-performance backend processing, **Angular** for the tactical dashboard, and a **local Ollama (`gemma4:12b`)** model for intelligent threat analysis.
 
 ---
 
@@ -26,7 +26,7 @@ Built with a microservices architecture, it leverages **Quarkus** for high-perfo
 ### 3. AI Intelligence & Alerting
 
 ![Email Alert](screenshots/email_alert.png)
-*Automated email alerts triggered when Gemini AI identifies a high-risk situation.*
+*Automated email alerts triggered when the local AI identifies a high-risk situation.*
 
 ---
 
@@ -43,11 +43,11 @@ The system follows a hybrid cloud architecture designed for low latency and high
 2.  **Backend (Java Quarkus):**
     * Exposes REST endpoints for Fleet Management (CRUD) and Telemetry Ingestion.
     * Persists fleet inventory in **PostgreSQL (Neon DB)** via Hibernate/Panache.
-    * **AI Integration:** Forwards unstructured drone reports to **Google Gemini 2.5 Flash**.
+    * **AI Integration:** Forwards unstructured drone reports to a **local Ollama (`gemma4:12b`)** instance.
     * **Hot Storage:** Pushes processed telemetry to Firebase for instant frontend updates.
 
 3.  **Alerting Layer:**
-    * If Gemini verdicts a `THREAT`, the backend triggers a serverless Google Apps Script webhook to send "Red Alert" emails.
+    * If the AI verdicts a `THREAT`, the backend triggers a serverless Google Apps Script webhook to send "Red Alert" emails.
 
 ---
 
@@ -70,8 +70,8 @@ The system follows a hybrid cloud architecture designed for low latency and high
 
 ### Artificial Intelligence
 
-* **Model:** Google Gemini 2.5 Flash
-* **Role:** Natural Language Processing (NLP) on drone field reports to determine threat levels (`SAFE`, `SUSPICIOUS`, `THREAT`).
+* **Model:** Local Ollama running `gemma4:12b`
+* **Role:** Natural Language Processing (NLP) on drone field reports to determine threat levels (`SAFE`, `THREAT`).
 
 ---
 
@@ -99,8 +99,10 @@ The system follows a hybrid cloud architecture designed for low latency and high
 cd backend
 # Create a .env file with your keys:
 # DATABASE_URL=jdbc:postgresql://...
-# GOOGLE_AI_KEY=...
 # FIREBASE_URL=...
+
+# Requires a local Ollama instance with the model pulled:
+#   ollama pull gemma4:12b   (served at http://localhost:11434)
 
 ./mvnw quarkus:dev
 ```
