@@ -25,6 +25,9 @@ export class AppComponent implements OnInit {
   dbDrones: any[] = [];
   newDrone: any = { callSign: '', model: '' }; // Model simplificat pentru formular
 
+  // Atmospheric Sensors (Open-Meteo -> backend /api/weather)
+  weatherData: any = null;
+
   // Dicționar pentru a ține minte care dronă zboară (ID -> Interval Timer)
   simulationIntervals: { [key: string]: any } = {};
 
@@ -59,6 +62,20 @@ export class AppComponent implements OnInit {
     this.initMap();
     this.setupTelemetry();
     this.loadDrones(); // Încercăm încărcarea la start
+    this.loadWeather(); // Citim senzorii atmosferici
+  }
+
+  // --- ATMOSPHERIC SENSORS LOGIC ---
+  private loadWeather() {
+    this.apiService.getWeather().subscribe({
+      next: (data) => {
+        this.weatherData = data;
+        console.log('🌡️ Atmospheric sensors online:', data);
+      },
+      error: (err) => {
+        console.warn('⚠️ Atmospheric sensors offline:', err.status);
+      }
+    });
   }
 
   // --- MAP LOGIC ---

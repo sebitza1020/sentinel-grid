@@ -4,9 +4,14 @@ import { Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class DroneApiService {
-  private apiUrl = 'https://sentinel-api-kh1p.onrender.com/api/drones'; 
+  private apiUrl = 'https://sentinel-api-kh1p.onrender.com/api/drones';
+  private weatherUrl = 'https://sentinel-api-kh1p.onrender.com/api/weather';
 
   constructor(private http: HttpClient) {}
+
+  getWeather(): Observable<any> {
+    return this.http.get<any>(this.weatherUrl);
+  }
 
   getAll(): Observable<any[]> {
     return this.http.get<any[]>(this.apiUrl);

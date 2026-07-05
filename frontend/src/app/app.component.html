@@ -64,6 +64,28 @@
     </div>
 
     <div id="map"></div>
+
+    <!-- ATMOSPHERIC SENSORS HUD -->
+    <div class="atmospheric-hud" *ngIf="weatherData?.current">
+      <div class="atmo-header">
+        <span class="atmo-title">ATMOSPHERIC SENSORS</span>
+        <span class="atmo-location">// BUCHAREST</span>
+      </div>
+      <div class="atmo-grid">
+        <div class="atmo-metric">
+          <span class="atmo-label">TEMP</span>
+          <span class="atmo-value">{{ weatherData.current.temperature_2m }}<span class="atmo-unit">°C</span></span>
+        </div>
+        <div class="atmo-metric">
+          <span class="atmo-label">WIND</span>
+          <span class="atmo-value">{{ weatherData.current.wind_speed_10m }}<span class="atmo-unit">km/h</span></span>
+        </div>
+        <div class="atmo-metric">
+          <span class="atmo-label">HUMIDITY</span>
+          <span class="atmo-value">{{ weatherData.current.relative_humidity_2m }}<span class="atmo-unit">%</span></span>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
