@@ -328,3 +328,85 @@ $border-color: rgba(0, 243, 255, 0.3);
     box-shadow: 0 0 0 0 rgba(255, 0, 60, 0);
   }
 }
+
+/* === ATMOSPHERIC SENSORS HUD === */
+.atmospheric-hud {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  min-width: 260px;
+  padding: 15px 20px;
+
+  // Glassmorphism: fundal întunecat semi-transparent + blur
+  background: rgba(10, 16, 22, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  // Cyberpunk cyan border + glow
+  border: 1px solid $neon-blue;
+  border-radius: 4px;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.25), inset 0 0 10px rgba(0, 243, 255, 0.05);
+
+  font-family: 'Courier New', Courier, monospace;
+  color: $neon-blue;
+}
+
+.atmo-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid $border-color;
+
+  .atmo-title {
+    font-size: 0.85rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px rgba(0, 243, 255, 0.6);
+  }
+
+  .atmo-location {
+    font-size: 0.7rem;
+    color: rgba($neon-blue, 0.6);
+    letter-spacing: 1px;
+  }
+}
+
+.atmo-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.atmo-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+
+  .atmo-label {
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: rgba($neon-blue, 0.6);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .atmo-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    line-height: 1;
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+
+    .atmo-unit {
+      font-size: 0.65rem;
+      font-weight: normal;
+      margin-left: 2px;
+      color: rgba($neon-blue, 0.7);
+    }
+  }
+}
