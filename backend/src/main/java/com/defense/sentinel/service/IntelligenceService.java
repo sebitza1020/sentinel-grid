@@ -1,7 +1,8 @@
 package com.defense.sentinel.service;
 
-import com.defense.sentinel.client.GeminiClient;
-import com.defense.sentinel.client.GeminiDTOs;
+import com.defense.sentinel.client.OllamaClient;
+import com.defense.sentinel.client.OllamaRequest;
+import com.defense.sentinel.client.OllamaResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -12,35 +13,39 @@ public class IntelligenceService {
 
   @Inject
   @RestClient
-  GeminiClient geminiClient;
+  OllamaClient ollamaClient;
 
-  @ConfigProperty(name = "gemini.api.key")
-  String apiKey;
+  // Modelul local rulat de Ollama (implicit gemma4:12b)
+  @ConfigProperty(name = "ollama.model", defaultValue = "gemma4:12b")
+  String model;
 
   public String analyzeReport(String reportText) {
-    // System Prompt optimizat pentru Gemini
-    String prompt = "You are a military defense system. Analyze this report: '" + reportText +
-        "'. Respond with exactly ONE word: SAFE, SUSPICIOUS, or THREAT.";
+    // System Prompt optimizat pentru modelul local. Cerem STRICT un singur cuvânt.
+    String prompt = "You are a military defense threat-detection system. " +
+        "Analyze this drone field report: '" + reportText + "'. " +
+        "Respond with EXACTLY ONE word and nothing else: SAFE or THREAT.";
 
     try {
-      System.out.println("🤖 Sending intel to Gemini Cloud...");
+      System.out.println("🤖 Sending intel to local Ollama (" + model + ")...");
 
-      // Construim request-ul complex
-      GeminiDTOs.Request request = new GeminiDTOs.Request(prompt);
+      // Apelăm instanța locală de Ollama
+      OllamaResponse response = ollamaClient.generate(new OllamaRequest(model, prompt));
 
-      // Apelăm API-ul
-      GeminiDTOs.Response response = geminiClient.generate(apiKey, request);
+      // Ollama poate returna spații/newline sau text suplimentar - parsăm robust
+      if (response != null && response.response != null) {
+        String verdict = response.response.trim().toUpperCase();
 
-      // Extragem răspunsul din structura nested (Response -> Candidates -> Content ->
-      // Parts -> Text)
-      if (response.candidates != null && !response.candidates.isEmpty()) {
-        String verdict = response.candidates.get(0).content.parts.get(0).text;
-        return verdict.trim().toUpperCase().replace("\n", "");
+        if (verdict.contains("THREAT")) {
+          return "THREAT";
+        }
+        if (verdict.contains("SAFE")) {
+          return "SAFE";
+        }
       }
 
       return "UNKNOWN";
     } catch (Exception e) {
-      System.err.println("❌ Gemini Uplink Failed: " + e.getMessage());
+      System.err.println("❌ Ollama Uplink Failed: " + e.getMessage());
       e.printStackTrace();
       return "UNKNOWN";
     }

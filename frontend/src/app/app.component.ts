@@ -230,7 +230,7 @@ export class AppComponent implements OnInit {
       currentLng = pos.lng;
     }
 
-    // Intervalul de simulare (15 secunde pentru Gemini)
+    // Intervalul de simulare (15 secunde pentru analiza AI)
     this.simulationIntervals[drone.id] = setInterval(() => {
       
       // VERIFICĂM DACĂ AVEM O ȚINTĂ (Waypoint)
