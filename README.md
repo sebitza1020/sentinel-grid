@@ -33,6 +33,11 @@ Built with a microservices architecture, it leverages **Quarkus** for high-perfo
 ![Black Box Analytics](screenshots/black_box_analytics.png)
 *Real-time analytics panel beneath the map: SAFE vs THREAT ratio, per-unit battery levels (colour-graded), and live fleet stats (active units, average battery, average altitude).*
 
+### 5. Atmospheric Sensors
+
+![Atmospheric Sensors](screenshots/atmospheric_sensors.png)
+*Live weather HUD for the theatre of operations (Bucharest): temperature, wind speed, and humidity, sourced from Open-Meteo and cached server-side.*
+
 ---
 
 ## 🏗️ System Architecture
@@ -50,6 +55,7 @@ The system follows a hybrid cloud architecture designed for low latency and high
     * Persists fleet inventory in **PostgreSQL (Neon DB)** via Hibernate/Panache.
     * **AI Integration:** Forwards unstructured drone reports to a **local Ollama (`gemma4:12b`)** instance.
     * **Hot Storage:** Pushes processed telemetry to Firebase for instant frontend updates.
+    * **Atmospheric Sensors:** Proxies live Bucharest weather from the free **Open-Meteo** API through `/api/weather`, with a server-side TTL cache (stale-on-error fallback) to stay well under the upstream rate limit.
 
 3.  **Alerting Layer:**
     * If the AI verdicts a `THREAT`, the backend triggers a serverless Google Apps Script webhook to send "Red Alert" emails.
@@ -64,6 +70,7 @@ The system follows a hybrid cloud architecture designed for low latency and high
 * **Framework:** Quarkus (Supersonic Subatomic Java)
 * **Database:** PostgreSQL (managed by Neon.tech)
 * **Real-time Store:** Firebase Realtime Database
+* **Weather Data:** Open-Meteo API (cached via `/api/weather`)
 * **Containerization:** Docker
 * **Hosting:** Render.com (Cloud Deployment)
 
@@ -87,6 +94,7 @@ The system follows a hybrid cloud architecture designed for low latency and high
 * **Autonomous Simulation:** "Play" mode for drones that generates GPS paths and randomized field reports (e.g., "Sector Clear" vs "Armed Convoy").
 * **AI-Powered Analysis:** Drones don't just send coordinates; they send text reports. The system reads them and decides the threat level automatically.
 * **"Black Box" Analytics:** A real-time panel below the map visualizes fleet status — a SAFE/THREAT doughnut, per-unit battery bars, and live stats — recomputed as telemetry streams in.
+* **Atmospheric Sensors:** A live weather HUD (temperature, wind, humidity) for the operational theatre, pulled from Open-Meteo and cached server-side to neutralize rate limits.
 * **Optimistic UI:** Instant visual feedback for fleet operations.
 * **Resilient Connectivity:** CORS-configured, SSL-secured communication between distributed services.
 
