@@ -23,9 +23,9 @@ public class AuthResource {
     public Response login(LoginRequest request) {
         // ⚠️ Într-un proiect real, aici verificăm în Baza de Date (Neon) cu parola hash-uită.
         // Pentru DEMO, folosim o verificare hardcodată pentru "Commander".
-        
+
         if ("commander".equals(request.username) && "sentinel2025".equals(request.password)) {
-            
+
             // Generăm permisul (Token-ul)
             String token = Jwt.issuer("https://sentinel-grid.com")
                     .upn("commander") // User Principal Name
@@ -34,8 +34,8 @@ public class AuthResource {
                     .sign(); // Semnează cu privateKey.pem automat
 
             return Response.ok("{\"token\": \"" + token + "\"}").build();
-        } 
-        
+        }
+
         return Response.status(Response.Status.UNAUTHORIZED).build();
     }
 }

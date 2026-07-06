@@ -1,23 +1,20 @@
 package com.defense.sentinel;
 
+import com.defense.sentinel.client.AlertPayload;
+import com.defense.sentinel.client.WebhookClient;
+import com.defense.sentinel.service.FirebaseService;
+import com.defense.sentinel.service.IntelligenceService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 import org.eclipse.microprofile.rest.client.inject.RestClient;
-
-import com.defense.sentinel.client.AlertPayload;
-import com.defense.sentinel.client.WebhookClient;
-import com.defense.sentinel.service.FirebaseService;
-import com.defense.sentinel.service.IntelligenceService;
 
 @Path("/api/drones")
 @Produces(MediaType.APPLICATION_JSON)
