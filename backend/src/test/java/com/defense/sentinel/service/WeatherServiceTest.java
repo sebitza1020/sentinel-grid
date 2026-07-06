@@ -1,12 +1,12 @@
 package com.defense.sentinel.service;
 
-import com.defense.sentinel.WeatherDTO;
-import com.defense.sentinel.client.OpenMeteoClient;
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+
+import com.defense.sentinel.WeatherDTO;
+import com.defense.sentinel.client.OpenMeteoClient;
+import org.junit.jupiter.api.Test;
 
 /**
  * Plain unit test (no @QuarkusTest) for the in-memory weather cache. Exercises

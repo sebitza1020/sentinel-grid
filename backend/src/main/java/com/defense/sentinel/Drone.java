@@ -27,7 +27,7 @@ public class Drone extends PanacheEntityBase {
     public LocalDateTime createdAt;
 
     public Drone() {}
-    
+
     public static Drone create(String callSign, String model, Integer battery) {
         Drone d = new Drone();
         d.callSign = callSign;
