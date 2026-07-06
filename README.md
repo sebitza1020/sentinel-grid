@@ -28,6 +28,11 @@ Built with a microservices architecture, it leverages **Quarkus** for high-perfo
 ![Email Alert](screenshots/email_alert.png)
 *Automated email alerts triggered when the local AI identifies a high-risk situation.*
 
+### 4. "Black Box" Fleet Analytics
+
+![Black Box Analytics](screenshots/black_box_analytics.png)
+*Real-time analytics panel beneath the map: SAFE vs THREAT ratio, per-unit battery levels (colour-graded), and live fleet stats (active units, average battery, average altitude).*
+
 ---
 
 ## 🏗️ System Architecture
@@ -67,6 +72,7 @@ The system follows a hybrid cloud architecture designed for low latency and high
 * **Framework:** Angular 18+ (Standalone Components)
 * **Styling:** SCSS (Cyberpunk/Military aesthetic)
 * **Mapping:** Leaflet.js + CartoDB Dark Matter tiles
+* **Analytics:** Chart.js + ng2-charts (real-time fleet charts)
 
 ### Artificial Intelligence
 
@@ -80,6 +86,7 @@ The system follows a hybrid cloud architecture designed for low latency and high
 * **Fleet Management (CRUD):** Deploy and decommission drones via a secured Admin Sidebar.
 * **Autonomous Simulation:** "Play" mode for drones that generates GPS paths and randomized field reports (e.g., "Sector Clear" vs "Armed Convoy").
 * **AI-Powered Analysis:** Drones don't just send coordinates; they send text reports. The system reads them and decides the threat level automatically.
+* **"Black Box" Analytics:** A real-time panel below the map visualizes fleet status — a SAFE/THREAT doughnut, per-unit battery bars, and live stats — recomputed as telemetry streams in.
 * **Optimistic UI:** Instant visual feedback for fleet operations.
 * **Resilient Connectivity:** CORS-configured, SSL-secured communication between distributed services.
 
