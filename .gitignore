@@ -1,2 +1,5 @@
 *.sh
 *.pem
+
+# Root-level tooling (Husky + lint-staged) dependencies
+/node_modules/

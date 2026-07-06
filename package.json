@@ -1,0 +1,13 @@
+{
+  "name": "sentinel-grid",
+  "version": "1.0.0",
+  "description": "Sentinel Grid monorepo — quality guardrails (Husky + lint-staged) for the backend/ (Quarkus) and frontend/ (Angular) workspaces.",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2"
+  }
+}

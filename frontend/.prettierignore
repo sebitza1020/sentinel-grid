@@ -1,0 +1,6 @@
+# Generated / build output — never format these
+package-lock.json
+dist/
+.angular/
+coverage/
+node_modules/
