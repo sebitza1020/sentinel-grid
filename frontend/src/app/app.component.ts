@@ -1,15 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DroneApiService } from './services/drone-api.service';
 import { TelemetryService } from './services/telemetry.service';
 import * as L from 'leaflet';
 import { AuthService } from './services/auth.service';
+import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-panel.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AnalyticsPanelComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
@@ -24,6 +25,9 @@ export class AppComponent implements OnInit {
   // Data State
   dbDrones: any[] = [];
   newDrone: any = { callSign: '', model: '' }; // Model simplificat pentru formular
+
+  // Ultima telemetrie live (Firebase), keyed by callSign — folosită pentru Black Box analytics
+  private liveTelemetry: any = {};
 
   // Atmospheric Sensors (Open-Meteo -> backend /api/weather)
   weatherData: any = null;
@@ -40,7 +44,8 @@ export class AppComponent implements OnInit {
   constructor(
     private telemetryService: TelemetryService,
     private apiService: DroneApiService,
-    public authService: AuthService
+    public authService: AuthService,
+    private cdr: ChangeDetectorRef
   ) { }
   
   doLogin() {
@@ -70,6 +75,7 @@ export class AppComponent implements OnInit {
     this.apiService.getWeather().subscribe({
       next: (data) => {
         this.weatherData = data;
+        this.cdr.markForCheck(); // zoneless: forțăm redesenarea HUD-ului atmosferic
         console.log('🌡️ Atmospheric sensors online:', data);
       },
       error: (err) => {
@@ -120,7 +126,41 @@ export class AppComponent implements OnInit {
 
   private setupTelemetry() {
     this.telemetryService.dronePositions$.subscribe(data => {
+      this.liveTelemetry = data || {};
       this.updateMarkers(data);
+      this.mergeTelemetryIntoFleet(); // alimentăm panoul Black Box cu date live
+      // App zoneless: callback-urile async (Firebase/HTTP) nu declanșează singure
+      // change detection, așa că notificăm manual ca panoul să se redeseneze.
+      this.cdr.markForCheck();
+    });
+  }
+
+  /**
+   * Îmbogățește lista de drone (SQL) cu telemetria live (Firebase), potrivită
+   * după callSign. Reasignăm dbDrones cu o referință nouă ca ngOnChanges din
+   * AnalyticsPanelComponent să se declanșeze. Câmpurile de identitate
+   * (id/callSign/model) rămân cele din baza de date.
+   */
+  private mergeTelemetryIntoFleet() {
+    if (!this.dbDrones || this.dbDrones.length === 0) return;
+
+    const byCallSign: { [k: string]: any } = {};
+    Object.keys(this.liveTelemetry || {}).forEach(k => {
+      byCallSign[k.toUpperCase()] = this.liveTelemetry[k];
+    });
+
+    this.dbDrones = this.dbDrones.map(d => {
+      const live = byCallSign[(d.callSign || '').toUpperCase()];
+      if (!live) return d;
+      return {
+        ...d,
+        lat: live.lat,
+        lng: live.lng,
+        alt: live.alt,
+        battery: live.battery,
+        report: live.report,
+        threat_level: live.threat_level
+      };
     });
   }
 
@@ -311,12 +351,15 @@ export class AppComponent implements OnInit {
     this.apiService.getAll().subscribe({
       next: (data) => {
         this.dbDrones = data;
+        this.mergeTelemetryIntoFleet(); // aplicăm telemetria live curentă peste flota încărcată
         this.isLoading = false;
+        this.cdr.markForCheck(); // zoneless: redesenăm lista + panoul Black Box
         console.log('✅ Drones loaded from SQL:', data);
       },
       error: (err) => {
         console.error('❌ Failed to load drones:', err);
         this.isLoading = false;
+        this.cdr.markForCheck();
         // Nu dăm alert la load automat, ca să nu stresăm userul dacă backend-ul doarme
       }
     });
@@ -335,17 +378,20 @@ export class AppComponent implements OnInit {
 
     this.apiService.create(payload).subscribe({
       next: (resp) => {
-        this.dbDrones.push(resp);
+        // Referință nouă ca panoul Black Box (ngOnChanges) să se actualizeze
+        this.dbDrones = [...this.dbDrones, resp];
 
-        this.newDrone = { callSign: '', model: '' }; 
+        this.newDrone = { callSign: '', model: '' };
         this.isLoading = false;
-        
+        this.cdr.markForCheck();
+
         console.log(`Unit ${resp.callSign} deployed successfully!`);
       },
       error: (err) => {
         console.error(err);
         alert(`DEPLOY FAILED: ${err.message}`);
         this.isLoading = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -363,6 +409,7 @@ export class AppComponent implements OnInit {
         error: (err) => {
           alert('Decommission failed: ' + err.message);
           this.dbDrones = backupList;
+          this.cdr.markForCheck();
         }
       });
     }
