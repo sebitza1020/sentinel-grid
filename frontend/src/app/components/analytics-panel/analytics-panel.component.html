@@ -1,0 +1,51 @@
+<div class="analytics-panel">
+  <div class="panel-title">
+    <span class="title-main">BLACK BOX</span>
+    <span class="title-sub">// FLEET ANALYTICS</span>
+  </div>
+
+  <div class="analytics-grid">
+    <!-- Raw text stats -->
+    <div class="stats-block">
+      <div class="stat-card">
+        <span class="stat-label">ACTIVE UNITS</span>
+        <span class="stat-value">{{ totalActive }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">AVG BATTERY</span>
+        <span class="stat-value" [class.low]="avgBattery < 20">{{ avgBattery }}<span class="stat-unit">%</span></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">AVG ALTITUDE</span>
+        <span class="stat-value">{{ avgAltitude }}<span class="stat-unit">m</span></span>
+      </div>
+    </div>
+
+    <!-- Doughnut: Threat Ratio -->
+    <div class="chart-card">
+      <span class="chart-heading">THREAT RATIO</span>
+      <div class="chart-canvas-wrap">
+        <canvas
+          baseChart
+          [type]="threatChartType"
+          [data]="threatChartData"
+          [options]="threatChartOptions"
+        ></canvas>
+      </div>
+    </div>
+
+    <!-- Bar: Battery Levels -->
+    <div class="chart-card wide">
+      <span class="chart-heading">UNIT BATTERY LEVELS</span>
+      <div class="chart-canvas-wrap">
+        <canvas
+          baseChart
+          [type]="batteryChartType"
+          [data]="batteryChartData"
+          [options]="batteryChartOptions"
+        ></canvas>
+        <div class="empty-state" *ngIf="totalActive === 0">AWAITING TELEMETRY FEED...</div>
+      </div>
+    </div>
+  </div>
+</div>

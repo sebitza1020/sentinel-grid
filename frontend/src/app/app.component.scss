@@ -220,8 +220,24 @@ $border-color: rgba(0, 243, 255, 0.3);
 
 /* === MAIN CONTENT & HUD === */
 .main-content {
-  flex-grow: 1; // Harta ocupă restul spațiului
+  flex-grow: 1; // Ocupă restul spațiului orizontal
+  min-width: 0;
+  display: flex;
+  flex-direction: column; // Harta sus, analytics jos
+}
+
+// Harta ocupă ~65% din înălțime; ancoră pentru overlay-urile absolute (HUD-uri)
+.map-viewport {
   position: relative;
+  flex: 1 1 65%;
+  min-height: 0;
+}
+
+// Panoul Black Box ocupă ~35% din înălțime
+app-analytics-panel {
+  display: block;
+  flex: 0 0 38%;
+  min-height: 0;
 }
 
 #map {
