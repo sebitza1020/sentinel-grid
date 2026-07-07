@@ -12,7 +12,7 @@ import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-
   standalone: true,
   imports: [CommonModule, FormsModule, AnalyticsPanelComponent],
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
 })
 export class AppComponent implements OnInit {
   private map: any;
@@ -21,7 +21,7 @@ export class AppComponent implements OnInit {
   // UI State
   showAdmin = false;
   isLoading = false;
-  
+
   // Data State
   dbDrones: any[] = [];
   newDrone: any = { callSign: '', model: '' }; // Model simplificat pentru formular
@@ -38,23 +38,23 @@ export class AppComponent implements OnInit {
   loginData = { username: '', password: '' };
 
   selectedDroneId: string | null = null;
-  flightVectors: { [key: string]: { targetLat: number, targetLng: number } } = {};
+  flightVectors: { [key: string]: { targetLat: number; targetLng: number } } = {};
   flightPaths: { [key: string]: L.Polyline } = {};
 
   constructor(
     private telemetryService: TelemetryService,
     private apiService: DroneApiService,
     public authService: AuthService,
-    private cdr: ChangeDetectorRef
-  ) { }
-  
+    private cdr: ChangeDetectorRef,
+  ) {}
+
   doLogin() {
     this.authService.login(this.loginData.username, this.loginData.password).subscribe({
       next: () => {
         alert('ACCESS GRANTED. Welcome back, Commander.');
         this.loadDrones(); // Încărcăm datele după login
       },
-      error: () => alert('ACCESS DENIED. Invalid credentials.')
+      error: () => alert('ACCESS DENIED. Invalid credentials.'),
     });
   }
 
@@ -68,19 +68,27 @@ export class AppComponent implements OnInit {
     this.setupTelemetry();
     this.loadDrones(); // Încercăm încărcarea la start
     this.loadWeather(); // Citim senzorii atmosferici
+    // Reîncercăm periodic: dacă primul fetch eșuează (cold start / 429), HUD-ul se
+    // reface singur. Backend-ul cache-uiește ~10 min, deci apelurile sunt ieftine.
+    setInterval(() => this.loadWeather(), 120000); // la fiecare 2 minute
   }
 
   // --- ATMOSPHERIC SENSORS LOGIC ---
   private loadWeather() {
     this.apiService.getWeather().subscribe({
       next: (data) => {
-        this.weatherData = data;
-        this.cdr.markForCheck(); // zoneless: forțăm redesenarea HUD-ului atmosferic
-        console.log('🌡️ Atmospheric sensors online:', data);
+        // Păstrăm ultima valoare bună dacă backend-ul întoarce gol (204/null pe cold start)
+        if (data?.current) {
+          this.weatherData = data;
+          this.cdr.markForCheck(); // zoneless: forțăm redesenarea HUD-ului atmosferic
+          console.log('🌡️ Atmospheric sensors online:', data);
+        } else {
+          console.warn('⚠️ Atmospheric sensors returned no data (keeping last known).');
+        }
       },
       error: (err) => {
         console.warn('⚠️ Atmospheric sensors offline:', err.status);
-      }
+      },
     });
   }
 
@@ -89,7 +97,7 @@ export class AppComponent implements OnInit {
     this.map = L.map('map').setView([44.4268, 26.1025], 13);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '© OpenStreetMap & CartoDB',
-      maxZoom: 19
+      maxZoom: 19,
     }).addTo(this.map);
 
     // --- ASCULTĂ CLICK-URILE PE HARTĂ ---
@@ -102,7 +110,7 @@ export class AppComponent implements OnInit {
 
   setWayPoint(droneId: string, lat: number, lng: number) {
     console.log(`📍 New Waypoint for ${droneId}: [${lat}, ${lng}]`);
-    
+
     // 1. Salvăm ținta
     this.flightVectors[droneId] = { targetLat: lat, targetLng: lng };
 
@@ -113,19 +121,21 @@ export class AppComponent implements OnInit {
     }
 
     // Găsim poziția curentă a dronei (din marker)
-    const currentPos = this.markers[droneId] ? this.markers[droneId].getLatLng() : this.map.getCenter();
+    const currentPos = this.markers[droneId]
+      ? this.markers[droneId].getLatLng()
+      : this.map.getCenter();
 
     // Desenăm linia punctată spre țintă
     this.flightPaths[droneId] = L.polyline([currentPos, [lat, lng]], {
       color: '#00f3ff',
       weight: 2,
       dashArray: '5, 10', // Linie punctată
-      opacity: 0.7
+      opacity: 0.7,
     }).addTo(this.map);
   }
 
   private setupTelemetry() {
-    this.telemetryService.dronePositions$.subscribe(data => {
+    this.telemetryService.dronePositions$.subscribe((data) => {
       this.liveTelemetry = data || {};
       this.updateMarkers(data);
       this.mergeTelemetryIntoFleet(); // alimentăm panoul Black Box cu date live
@@ -145,11 +155,11 @@ export class AppComponent implements OnInit {
     if (!this.dbDrones || this.dbDrones.length === 0) return;
 
     const byCallSign: { [k: string]: any } = {};
-    Object.keys(this.liveTelemetry || {}).forEach(k => {
+    Object.keys(this.liveTelemetry || {}).forEach((k) => {
       byCallSign[k.toUpperCase()] = this.liveTelemetry[k];
     });
 
-    this.dbDrones = this.dbDrones.map(d => {
+    this.dbDrones = this.dbDrones.map((d) => {
       const live = byCallSign[(d.callSign || '').toUpperCase()];
       if (!live) return d;
       return {
@@ -159,24 +169,24 @@ export class AppComponent implements OnInit {
         alt: live.alt,
         battery: live.battery,
         report: live.report,
-        threat_level: live.threat_level
+        threat_level: live.threat_level,
       };
     });
   }
 
   private updateMarkers(drones: any) {
-    Object.keys(drones).forEach(key => {
+    Object.keys(drones).forEach((key) => {
       const d = drones[key];
       const isThreat = d.threat_level === 'THREAT';
       const color = isThreat ? '#ff003c' : '#00f3ff';
-      
+
       // --- LOGICA NOUĂ PENTRU IMAGINE ---
       let imageHtml = '';
       if (isThreat && d.report) {
         // 1. Extragem partea esențială din raport (scoatem "Visual contact:")
         // Ex: "Visual contact: Armed convoy" devine "Armed convoy"
         let cleanPrompt = d.report.replace('Visual contact:', '').trim();
-        
+
         // 2. Adăugăm "condimente" pentru a arăta a imagine de spionaj militar
         cleanPrompt += ' drone surveillance view night vision grainy';
 
@@ -184,7 +194,7 @@ export class AppComponent implements OnInit {
         const encodedPrompt = encodeURIComponent(cleanPrompt);
         // Folosim serviciul Pollinations.ai (gratuit, prin URL)
         const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=300&height=200&nologo=true`;
-        
+
         // 4. Construim HTML-ul imaginii
         imageHtml = `
           <div style="margin-top: 10px; position: relative;">
@@ -227,7 +237,7 @@ export class AppComponent implements OnInit {
           fillColor: color,
           fillOpacity: 0.7,
           radius: 12,
-          weight: 3
+          weight: 3,
         }).addTo(this.map);
 
         marker.bindPopup(popupContent);
@@ -255,10 +265,10 @@ export class AppComponent implements OnInit {
 
   startSimulation(drone: any) {
     console.log(`🚀 Manual Control Active for ${drone.callSign}`);
-    
+
     // O selectăm automat când apăsăm Play
     this.selectedDroneId = drone.id;
-    
+
     // Poziția inițială (dacă nu are, pornește din centru)
     let currentLat = 44.4268;
     let currentLng = 26.1025;
@@ -272,7 +282,6 @@ export class AppComponent implements OnInit {
 
     // Intervalul de simulare (15 secunde pentru analiza AI)
     this.simulationIntervals[drone.id] = setInterval(() => {
-      
       // VERIFICĂM DACĂ AVEM O ȚINTĂ (Waypoint)
       const vector = this.flightVectors[drone.id];
 
@@ -281,11 +290,11 @@ export class AppComponent implements OnInit {
         // Calculăm distanța rămasă
         const distLat = vector.targetLat - currentLat;
         const distLng = vector.targetLng - currentLng;
-        
+
         // Viteza de deplasare (aproximativ 20% din distanță per "tick" sau un pas fix)
         // Pentru demo, facem pași mai mari să se vadă mișcarea
-        const step = 0.002; 
-        
+        const step = 0.002;
+
         // Dacă suntem foarte aproape, ne oprim
         if (Math.abs(distLat) < 0.0005 && Math.abs(distLng) < 0.0005) {
           console.log('Target reached. Holding position.');
@@ -297,13 +306,15 @@ export class AppComponent implements OnInit {
           const angle = Math.atan2(distLat, distLng);
           currentLat += Math.sin(angle) * step;
           currentLng += Math.cos(angle) * step;
-          
+
           // Actualizăm linia vizuală (să plece din noua poziție)
           if (this.flightPaths[drone.id]) {
-            this.flightPaths[drone.id].setLatLngs([[currentLat, currentLng], [vector.targetLat, vector.targetLng]]);
+            this.flightPaths[drone.id].setLatLngs([
+              [currentLat, currentLng],
+              [vector.targetLat, vector.targetLng],
+            ]);
           }
         }
-
       } else {
         // --- LOGICA VECHE (CERC) - FALLBACK DACĂ NU DAI CLICK ---
         // (Opțional: Poți lăsa drona să stea pe loc dacă nu are țintă)
@@ -313,23 +324,22 @@ export class AppComponent implements OnInit {
 
       // --- SCENARIU THREAT & AI --- (Rămâne neschimbat)
       const isThreat = Math.random() > 0.8;
-      const reportText = isThreat 
-        ? "Visual contact: Armed convoy moving towards civilian sector." 
-        : "Sector clear. En route to waypoint.";
+      const reportText = isThreat
+        ? 'Visual contact: Armed convoy moving towards civilian sector.'
+        : 'Sector clear. En route to waypoint.';
 
       const payload = {
         lat: currentLat,
         lng: currentLng,
         alt: 150 + Math.random() * 50,
         battery: Math.floor(Math.random() * 100),
-        report: reportText
+        report: reportText,
       };
 
       this.apiService.sendTelemetry(drone.callSign, payload).subscribe({
         next: () => console.log(`📡 Telemetry sent`),
-        error: (err) => console.warn('Telemetry skipped:', err.status)
+        error: (err) => console.warn('Telemetry skipped:', err.status),
       });
-
     }, 15000); // 15 secunde
   }
 
@@ -361,7 +371,7 @@ export class AppComponent implements OnInit {
         this.isLoading = false;
         this.cdr.markForCheck();
         // Nu dăm alert la load automat, ca să nu stresăm userul dacă backend-ul doarme
-      }
+      },
     });
   }
 
@@ -373,7 +383,7 @@ export class AppComponent implements OnInit {
       callSign: this.newDrone.callSign,
       model: this.newDrone.model,
       batteryCapacity: 10000, // Default militar
-      status: 'OFFLINE'
+      status: 'OFFLINE',
     };
 
     this.apiService.create(payload).subscribe({
@@ -392,15 +402,14 @@ export class AppComponent implements OnInit {
         alert(`DEPLOY FAILED: ${err.message}`);
         this.isLoading = false;
         this.cdr.markForCheck();
-      }
+      },
     });
   }
 
   decommission(id: string) {
     if (confirm('⚠️ WARNING: Confirm decommissioning of this unit?')) {
-      
       const backupList = [...this.dbDrones];
-      this.dbDrones = this.dbDrones.filter(d => d.id !== id);
+      this.dbDrones = this.dbDrones.filter((d) => d.id !== id);
 
       this.apiService.delete(id).subscribe({
         next: () => {
@@ -410,7 +419,7 @@ export class AppComponent implements OnInit {
           alert('Decommission failed: ' + err.message);
           this.dbDrones = backupList;
           this.cdr.markForCheck();
-        }
+        },
       });
     }
   }

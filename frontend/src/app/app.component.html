@@ -1,5 +1,4 @@
 <div class="app-container">
-
   <div class="sidebar" [class.sidebar-open]="showAdmin">
     <div class="sidebar-header">
       <h2>🛡️ FLEET COMMAND</h2>
@@ -7,46 +6,47 @@
     </div>
 
     <div class="sidebar-content">
-    
       <div *ngIf="!(authService.isLoggedIn$ | async)" class="login-section">
         <h3>🔒 SECURITY CLEARANCE REQUIRED</h3>
         <p class="warning-text">Authorized Personnel Only</p>
-    
+
         <div class="input-group">
           <label>Commander ID</label>
-          <input [(ngModel)]="loginData.username" placeholder="Enter ID">
+          <input [(ngModel)]="loginData.username" placeholder="Enter ID" />
         </div>
         <div class="input-group">
           <label>Access Code</label>
-          <input [(ngModel)]="loginData.password" type="password" placeholder="Enter Code">
+          <input [(ngModel)]="loginData.password" type="password" placeholder="Enter Code" />
         </div>
-    
+
         <button (click)="doLogin()" class="btn-login">AUTHENTICATE</button>
       </div>
-    
+
       <div *ngIf="authService.isLoggedIn$ | async">
         <button (click)="doLogout()" class="btn-logout">LOGOUT COMMANDER</button>
-    
+
         <div class="panel-section deploy-section">
           <h3>Deploy New Unit</h3>
           <div class="form-grid">
             <div class="input-group">
               <label>Call Sign</label>
-              <input [(ngModel)]="newDrone.callSign">
+              <input [(ngModel)]="newDrone.callSign" />
             </div>
             <div class="input-group">
               <label>Model Type</label>
-              <input [(ngModel)]="newDrone.model">
+              <input [(ngModel)]="newDrone.model" />
             </div>
           </div>
           <button (click)="addDrone()" class="btn-deploy">DEPLOY UNIT</button>
         </div>
-    
+
         <div class="panel-section list-section">
           <div class="drone-list">
             <div class="drone-card" *ngFor="let d of dbDrones">
               <span class="drone-callsign">{{ d.callSign }}</span>
-              <button (click)="toggleSimulation(d)" class="btn-sim">{{ isSimulating(d.id) ? '⏹' : '▶' }}</button>
+              <button (click)="toggleSimulation(d)" class="btn-sim">
+                {{ isSimulating(d.id) ? '⏹' : '▶' }}
+              </button>
               <button (click)="decommission(d.id)" class="btn-decommission">🗑️</button>
             </div>
           </div>
@@ -59,15 +59,13 @@
     <div class="map-viewport">
       <div class="hud-overlay">
         <h1>SENTINEL GRID <span class="blink">LIVE</span></h1>
-        <button (click)="toggleAdmin()" class="btn-hud-toggle">
-          ⚙️ MANAGE FLEET
-        </button>
+        <button (click)="toggleAdmin()" class="btn-hud-toggle">⚙️ MANAGE FLEET</button>
       </div>
 
       <div id="map"></div>
 
-      <!-- ATMOSPHERIC SENSORS HUD -->
-      <div class="atmospheric-hud" *ngIf="weatherData?.current">
+      <!-- ATMOSPHERIC SENSORS HUD (permanent — shows "--" until/while data is unavailable) -->
+      <div class="atmospheric-hud">
         <div class="atmo-header">
           <span class="atmo-title">ATMOSPHERIC SENSORS</span>
           <span class="atmo-location">// BUCHAREST</span>
@@ -75,15 +73,24 @@
         <div class="atmo-grid">
           <div class="atmo-metric">
             <span class="atmo-label">TEMP</span>
-            <span class="atmo-value">{{ weatherData.current.temperature_2m }}<span class="atmo-unit">°C</span></span>
+            <span class="atmo-value"
+              >{{ weatherData?.current?.temperature_2m ?? '--'
+              }}<span class="atmo-unit">°C</span></span
+            >
           </div>
           <div class="atmo-metric">
             <span class="atmo-label">WIND</span>
-            <span class="atmo-value">{{ weatherData.current.wind_speed_10m }}<span class="atmo-unit">km/h</span></span>
+            <span class="atmo-value"
+              >{{ weatherData?.current?.wind_speed_10m ?? '--'
+              }}<span class="atmo-unit">km/h</span></span
+            >
           </div>
           <div class="atmo-metric">
             <span class="atmo-label">HUMIDITY</span>
-            <span class="atmo-value">{{ weatherData.current.relative_humidity_2m }}<span class="atmo-unit">%</span></span>
+            <span class="atmo-value"
+              >{{ weatherData?.current?.relative_humidity_2m ?? '--'
+              }}<span class="atmo-unit">%</span></span
+            >
           </div>
         </div>
       </div>
@@ -92,5 +99,4 @@
     <!-- BLACK BOX ANALYTICS -->
     <app-analytics-panel [drones]="dbDrones"></app-analytics-panel>
   </div>
-
 </div>

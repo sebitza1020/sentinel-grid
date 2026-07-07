@@ -82,7 +82,10 @@ public class TelemetrieResource {
                     try {
                         webhookClient.sendAlert(new AlertPayload(callSign, data.report, data.lat, data.lng));
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        // Best-effort alert: the THREAT verdict is still written to Firebase even if
+                        // the webhook is unreachable (e.g. 403 when the Apps Script isn't public).
+                        System.err.println("⚠️ Alert webhook delivery failed for " + callSign + " ("
+                                + e.getMessage() + "). Threat is recorded; alert email was not sent.");
                     }
                 }).start();
             }
