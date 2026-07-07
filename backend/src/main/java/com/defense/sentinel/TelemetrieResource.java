@@ -69,7 +69,9 @@ public class TelemetrieResource {
             // Call sincron către AI (în producție l-am face asincron/job queue)
             String threatLevel = intelligenceService.analyzeReport(data.report);
             update.put("threat_level", threatLevel);
-            update.put("last_report", data.report);
+            // Frontend-ul (popup + imaginea recon + Black Box) citește "report"; înainte
+            // scriam "last_report", așa că raportul apărea mereu ca "No report".
+            update.put("report", data.report);
 
             // LOGICA NOUĂ DE ALERTĂ
             if ("THREAT".equals(threatLevel)) {
