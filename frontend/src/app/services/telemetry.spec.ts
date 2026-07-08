@@ -1,17 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
 import { vi } from 'vitest';
 
-// TelemetryService boots Firebase in its constructor (initializeApp + getDatabase +
-// a live onValue subscription). Mock the Firebase SDK so the test opens no real
-// connection and runs deterministically.
-vi.mock('firebase/app', () => ({
-  initializeApp: vi.fn(() => ({})),
-}));
-vi.mock('firebase/database', () => ({
-  getDatabase: vi.fn(() => ({})),
-  ref: vi.fn(() => ({})),
-  onValue: vi.fn(),
-  connectDatabaseEmulator: vi.fn(),
+// TelemetryService opens an RxJS webSocket in its constructor. Mock the factory so the test opens
+// no real connection and runs deterministically (a plain Subject stands in for the socket).
+vi.mock('rxjs/webSocket', () => ({
+  webSocket: vi.fn(() => new Subject()),
 }));
 
 import { TelemetryService } from './telemetry.service';
@@ -26,5 +20,9 @@ describe('Telemetry', () => {
 
   it('should be created', () => {
     expect(service).toBeTruthy();
+  });
+
+  it('should start with an empty fleet snapshot', () => {
+    expect(service.dronePositions$.value).toEqual({});
   });
 });
