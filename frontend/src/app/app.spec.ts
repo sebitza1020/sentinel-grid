@@ -5,7 +5,7 @@ import { BehaviorSubject } from 'rxjs';
 import { AppComponent } from './app.component';
 import { TelemetryService } from './services/telemetry.service';
 
-// Stub TelemetryService so instantiating AppComponent does NOT open a real Firebase
+// Stub TelemetryService so instantiating AppComponent does NOT open a real telemetry
 // WebSocket (the real service connects in its constructor).
 const telemetryStub = { dronePositions$: new BehaviorSubject<Record<string, unknown>>({}) };
 
