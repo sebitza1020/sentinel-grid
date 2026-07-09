@@ -1,5 +1,20 @@
 /* Importăm CSS-ul Leaflet direct */
 @import 'leaflet/dist/leaflet.css';
+/* Leaflet Draw (No-Fly Zone sketching) */
+@import 'leaflet-draw/dist/leaflet.draw.css';
+
+/* Cyberpunk overrides for the Leaflet Draw toolbar */
+.leaflet-draw-toolbar a {
+  background-color: rgba(10, 16, 22, 0.85);
+  border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+}
+.leaflet-draw-toolbar a:hover {
+  background-color: rgba(0, 243, 255, 0.2);
+}
+.leaflet-draw-actions a {
+  background: rgba(10, 16, 22, 0.95);
+  color: #00f3ff;
+}
 
 body,
 html {

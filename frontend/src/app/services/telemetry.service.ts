@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { retry } from 'rxjs/operators';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 
@@ -11,6 +11,9 @@ export class TelemetryService {
   // Contract păstrat: obiect keyed by callSign (aceeași formă emisă înainte de Firebase).
   public dronePositions$ = new BehaviorSubject<any>({});
 
+  // Rute de evaziune calculate de backend (mesaje discriminate cu type: "path").
+  public dronePaths$ = new Subject<any>();
+
   private socket$: WebSocketSubject<any>;
 
   constructor() {
@@ -20,7 +23,12 @@ export class TelemetryService {
     // retry({ delay }) reconectează automat după cold start-ul Render / drop-uri de rețea.
     this.socket$.pipe(retry({ delay: 3000 })).subscribe({
       next: (data) => {
-        if (data) {
+        if (!data) return;
+        // Discriminăm mesajele: rutele au type "path"; snapshot-ul de telemetrie e un
+        // map brut keyed by callSign (fără câmp "type") — contractul Reactive Radar rămâne intact.
+        if (data.type === 'path') {
+          this.dronePaths$.next(data);
+        } else {
           this.dronePositions$.next(data);
         }
       },
