@@ -10,6 +10,7 @@ import jakarta.websocket.OnOpen;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,7 +68,27 @@ public class TelemetrySocket {
 
   /** Difuzează snapshot-ul curent al flotei către toate sesiunile deschise. */
   public void broadcast() {
-    String json = snapshotJson();
+    fanOut(snapshotJson());
+  }
+
+  /**
+   * Broadcast an evasion route for a drone. Sent as a discriminated message ({@code type: "path"}) so
+   * the frontend can tell it apart from the bare drone-state snapshot (which has no {@code type} key),
+   * leaving the Reactive Radar telemetry contract untouched. {@code waypoints} are {@code [lat, lng]}.
+   */
+  public void broadcastPath(String callSign, List<double[]> waypoints) {
+    Map<String, Object> message = new HashMap<>();
+    message.put("type", "path");
+    message.put("callSign", callSign);
+    message.put("waypoints", waypoints);
+    try {
+      fanOut(objectMapper.writeValueAsString(message));
+    } catch (Exception e) {
+      System.err.println("⚠️ Path broadcast serialization failed: " + e.getMessage());
+    }
+  }
+
+  private void fanOut(String json) {
     for (Session session : sessions) {
       sendTo(session, json);
     }
