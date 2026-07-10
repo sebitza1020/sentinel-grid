@@ -3,6 +3,7 @@ package com.defense.sentinel;
 import com.defense.sentinel.client.AlertPayload;
 import com.defense.sentinel.client.WebhookClient;
 import com.defense.sentinel.service.FirebaseService;
+import com.defense.sentinel.service.FleetCommanderService;
 import com.defense.sentinel.service.IntelligenceService;
 import com.defense.sentinel.websocket.TelemetrySocket;
 import jakarta.annotation.security.RolesAllowed;
@@ -34,6 +35,9 @@ public class TelemetrieResource {
 
     @Inject
     TelemetrySocket telemetrySocket;
+
+    @Inject
+    FleetCommanderService fleetCommanderService;
 
     @GET
     public List<Drone> listAll() {
@@ -96,6 +100,9 @@ public class TelemetrieResource {
                                 + e.getMessage() + "). Threat is recorded; alert email was not sent.");
                     }
                 }).start();
+
+                // AI Fleet Commander: autonomously re-task the closest available unit to reinforce.
+                fleetCommanderService.reinforce(callSign, data.lat, data.lng);
             }
 
             System.out.println("⚠️ AI Verdict: " + threatLevel);

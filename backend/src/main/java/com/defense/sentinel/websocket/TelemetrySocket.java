@@ -71,16 +71,27 @@ public class TelemetrySocket {
     fanOut(snapshotJson());
   }
 
-  /**
-   * Broadcast an evasion route for a drone. Sent as a discriminated message ({@code type: "path"}) so
-   * the frontend can tell it apart from the bare drone-state snapshot (which has no {@code type} key),
-   * leaving the Reactive Radar telemetry contract untouched. {@code waypoints} are {@code [lat, lng]}.
-   */
+  /** Read-only snapshot of the live fleet pool (callSign -> state), for the Fleet Commander. */
+  public Map<String, Map<String, Object>> currentStates() {
+    return new HashMap<>(droneStates);
+  }
+
   public void broadcastPath(String callSign, List<double[]> waypoints) {
+    broadcastPath(callSign, waypoints, false);
+  }
+
+  /**
+   * Broadcast a route for a drone. Sent as a discriminated message ({@code type: "path"}) so the
+   * frontend can tell it apart from the bare drone-state snapshot (which has no {@code type} key),
+   * leaving the Reactive Radar telemetry contract untouched. {@code waypoints} are {@code [lat, lng]}.
+   * {@code reinforcement} flags an autonomous Fleet Commander order so the UI renders it distinctly.
+   */
+  public void broadcastPath(String callSign, List<double[]> waypoints, boolean reinforcement) {
     Map<String, Object> message = new HashMap<>();
     message.put("type", "path");
     message.put("callSign", callSign);
     message.put("waypoints", waypoints);
+    message.put("reinforcement", reinforcement);
     try {
       fanOut(objectMapper.writeValueAsString(message));
     } catch (Exception e) {

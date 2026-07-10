@@ -16,6 +16,17 @@
   color: #00f3ff;
 }
 
+/* Fleet Commander reinforcement route: red path whose dashes "flow" toward the threat */
+.reinforce-path {
+  animation: dash-flow 1s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(255, 0, 60, 0.7));
+}
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -30;
+  }
+}
+
 body,
 html {
   margin: 0;
