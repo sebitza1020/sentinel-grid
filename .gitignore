@@ -1,5 +1,7 @@
 *.sh
 *.pem
+CLAUDE.md
+AGENTS.md
 
 # Root-level tooling (Husky + lint-staged) dependencies
 /node_modules/
