@@ -4,6 +4,7 @@ import com.defense.sentinel.client.AlertPayload;
 import com.defense.sentinel.client.WebhookClient;
 import com.defense.sentinel.service.FirebaseService;
 import com.defense.sentinel.service.IntelligenceService;
+import com.defense.sentinel.websocket.TelemetrySocket;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -30,6 +31,9 @@ public class TelemetrieResource {
     @Inject
     @RestClient
     WebhookClient webhookClient;
+
+    @Inject
+    TelemetrySocket telemetrySocket;
 
     @GET
     public List<Drone> listAll() {
@@ -60,6 +64,8 @@ public class TelemetrieResource {
         update.put("lng", data.lng);
         update.put("alt", data.alt);
         update.put("batt", data.battery);
+        // Frontend-ul (harta + Black Box) citește "battery"; îl publicăm explicit.
+        update.put("battery", data.battery);
         update.put("last_seen", System.currentTimeMillis());
 
         // LOGICA AI: Analizăm doar dacă avem un raport nou
@@ -96,6 +102,9 @@ public class TelemetrieResource {
         }
 
         firebaseService.getTelemetryRef().child(callSign).updateChildrenAsync(update);
+
+        // Reactive Radar: push live state to all connected dashboards over the WebSocket.
+        telemetrySocket.updateAndBroadcast(callSign, update);
 
         return Response.ok().build();
     }

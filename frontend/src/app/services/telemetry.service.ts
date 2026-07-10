@@ -1,52 +1,49 @@
 import { Injectable } from '@angular/core';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue, connectDatabaseEmulator } from 'firebase/database';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
+import { retry } from 'rxjs/operators';
+import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class TelemetryService {
-  private db: any;
-  // BehaviorSubject va ține ultima stare a flotei și va notifica harta când apar schimbări
+  // BehaviorSubject va ține ultima stare a flotei și va notifica harta când apar schimbări.
+  // Contract păstrat: obiect keyed by callSign (aceeași formă emisă înainte de Firebase).
   public dronePositions$ = new BehaviorSubject<any>({});
 
+  // Rute de evaziune calculate de backend (mesaje discriminate cu type: "path").
+  public dronePaths$ = new Subject<any>();
+
+  private socket$: WebSocketSubject<any>;
+
   constructor() {
-    this.initFirebase();
-  }
+    const url = this.buildSocketUrl();
+    this.socket$ = webSocket<any>(url);
 
-  private initFirebase() {
-    const firebaseConfig = {
-      apiKey: "AIzaSyCajXRlD4czRRAiy_6x57zK58xvkcSkju0",
-      authDomain: "sentinel-grid-f1119.firebaseapp.com",
-      databaseURL: "https://sentinel-grid-f1119-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "sentinel-grid-f1119",
-      storageBucket: "sentinel-grid-f1119.firebasestorage.app",
-      messagingSenderId: "842452564408",
-      appId: "1:842452564408:web:54e07be9abd0334cfbb74d"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    this.db = getDatabase(app);
-
-    // CRITIC: Conectăm Angular la Emulatorul Local pornit anterior
-    // console.log('📡 Connecting to Firebase Emulator...');
-    // connectDatabaseEmulator(this.db, '127.0.0.1', 9000);
-
-    console.log('📡 Connected to LIVE Firebase Sentinel Grid');
-
-    this.listenToDrones();
-  }
-
-  private listenToDrones() {
-    const dronesRef = ref(this.db, 'live_telemetry');
-    
-    // Ascultăm în timp real (WebSocket connection deschis de Firebase)
-    onValue(dronesRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        this.dronePositions$.next(data);
-      }
+    // retry({ delay }) reconectează automat după cold start-ul Render / drop-uri de rețea.
+    this.socket$.pipe(retry({ delay: 3000 })).subscribe({
+      next: (data) => {
+        if (!data) return;
+        // Discriminăm mesajele: rutele au type "path"; snapshot-ul de telemetrie e un
+        // map brut keyed by callSign (fără câmp "type") — contractul Reactive Radar rămâne intact.
+        if (data.type === 'path') {
+          this.dronePaths$.next(data);
+        } else {
+          this.dronePositions$.next(data);
+        }
+      },
+      error: (err) => console.warn('📡 Telemetry socket error:', err),
     });
+
+    console.log(`📡 Reactive Radar online — streaming telemetry from ${url}`);
+  }
+
+  /** ws://localhost:8080 în dev; wss://<backend> în producție (nu există environment files). */
+  private buildSocketUrl(): string {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    return isLocal
+      ? 'ws://localhost:8080/ws/telemetry'
+      : 'wss://sentinel-api-kh1p.onrender.com/ws/telemetry';
   }
 }
