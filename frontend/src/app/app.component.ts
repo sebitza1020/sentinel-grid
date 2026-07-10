@@ -41,6 +41,8 @@ export class AppComponent implements OnInit {
   // Planul de zbor = coadă ordonată de waypoint-uri (calculată de backend cu ocolirea No-Fly Zone).
   flightPlans: { [key: string]: { lat: number; lng: number }[] } = {};
   flightPaths: { [key: string]: L.Polyline } = {};
+  // Care drone au o rută de reinforcement (Fleet Commander) — le desenăm traiectoria roșu animat.
+  private reinforcing: { [key: string]: boolean } = {};
   // Ultima poziție simulată per dronă (id), folosită ca punct de plecare pentru rutare.
   private lastPositions: { [key: string]: { lat: number; lng: number } } = {};
   // Layer editabil cu poligoanele No-Fly Zone desenate de operator.
@@ -190,15 +192,24 @@ export class AppComponent implements OnInit {
     this.telemetryService.dronePaths$.subscribe((msg: any) => {
       if (!msg?.callSign || !Array.isArray(msg.waypoints)) return;
       const drone = this.dbDrones.find((d) => d.callSign === msg.callSign);
-      if (drone) {
-        this.applyRoute(drone.id, msg.waypoints);
+      if (!drone) return;
+
+      const reinforcement = msg.reinforcement === true;
+      this.applyRoute(drone.id, msg.waypoints, reinforcement);
+
+      // Fleet Commander: dacă e un ordin de reinforcement, "scramble" drona (dacă nu zboară deja)
+      // ca să pornească autonom spre amenințare.
+      if (reinforcement && !this.simulationIntervals[drone.id]) {
+        console.log(`🛡️ [COMMANDER] Scrambling ${drone.callSign} for reinforcement.`);
+        this.startSimulation(drone);
       }
     });
   }
 
   /** Aplică o coadă de waypoint-uri (fiecare [lat,lng]) și redesenează traiectoria. */
-  private applyRoute(droneId: string, waypoints: number[][]): void {
+  private applyRoute(droneId: string, waypoints: number[][], reinforcement = false): void {
     this.flightPlans[droneId] = waypoints.map((w) => ({ lat: w[0], lng: w[1] }));
+    this.reinforcing[droneId] = reinforcement;
     this.drawFlightPath(droneId);
     this.cdr.markForCheck();
   }
@@ -217,11 +228,14 @@ export class AppComponent implements OnInit {
       [start.lat, start.lng],
       ...plan.map((w) => [w.lat, w.lng] as L.LatLngExpression),
     ];
+    const reinforce = this.reinforcing[droneId];
     this.flightPaths[droneId] = L.polyline(points, {
-      color: '#00f3ff',
-      weight: 2,
+      // Ruta de reinforcement (Fleet Commander) e roșie, mai groasă și animată (dash-flow).
+      color: reinforce ? '#ff003c' : '#00f3ff',
+      weight: reinforce ? 3 : 2,
       dashArray: '5, 10',
-      opacity: 0.7,
+      opacity: reinforce ? 0.9 : 0.7,
+      className: reinforce ? 'reinforce-path' : '',
     }).addTo(this.map);
   }
 
@@ -398,9 +412,12 @@ export class AppComponent implements OnInit {
         if (Math.abs(distLat) < 0.0005 && Math.abs(distLng) < 0.0005) {
           // Waypoint atins → trecem la următorul.
           plan.shift();
-          if (plan.length === 0 && this.flightPaths[drone.id]) {
-            this.flightPaths[drone.id].remove();
-            delete this.flightPaths[drone.id];
+          if (plan.length === 0) {
+            this.reinforcing[drone.id] = false;
+            if (this.flightPaths[drone.id]) {
+              this.flightPaths[drone.id].remove();
+              delete this.flightPaths[drone.id];
+            }
             console.log('Route complete. Holding position.');
           }
         } else {
