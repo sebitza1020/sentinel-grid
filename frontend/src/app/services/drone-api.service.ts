@@ -31,6 +31,11 @@ export class DroneApiService {
     });
   }
 
+  /** Descarcă debrief-ul tactic oficial (PDF) generat de backend, ca blob binar. */
+  exportDebriefPdf(): Observable<Blob> {
+    return this.http.get(`${this.base}/api/analytics/export`, { responseType: 'blob' });
+  }
+
   getWeather(): Observable<any> {
     return this.http.get<any>(this.weatherUrl);
   }
