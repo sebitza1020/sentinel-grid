@@ -149,6 +149,10 @@ export class AnalyticsPanelComponent implements OnChanges {
     return status === 'THREAT';
   }
 
+  private isRtb(d: any): boolean {
+    return (d?.status ?? '').toString().toUpperCase() === 'RTB';
+  }
+
   private recompute(): void {
     const fleet = Array.isArray(this.drones) ? this.drones : [];
     // Only units that have actually reported telemetry count as "active".
@@ -172,13 +176,17 @@ export class AnalyticsPanelComponent implements OnChanges {
     // --- Battery per unit ---
     const labels = active.map((d) => this.callSign(d));
     const batteries = active.map((d) => this.num(d.battery) ?? 0);
+    // Unitățile în RTB apar ambru (aterizare autonomă în curs); restul, colorate după nivel.
+    const barColors = active.map((d, i) =>
+      this.isRtb(d) ? AMBER : batteries[i] < 20 ? RED : batteries[i] < 50 ? AMBER : CYAN,
+    );
     this.batteryChartData = {
       labels,
       datasets: [
         {
           data: batteries,
           label: 'Battery %',
-          backgroundColor: batteries.map((b) => (b < 20 ? RED : b < 50 ? AMBER : CYAN)),
+          backgroundColor: barColors,
           borderRadius: 3,
           maxBarThickness: 42,
         },

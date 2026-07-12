@@ -43,6 +43,8 @@ export class AppComponent implements OnInit {
   flightPaths: { [key: string]: L.Polyline } = {};
   // Care drone au o rută de reinforcement (Fleet Commander) — le desenăm traiectoria roșu animat.
   private reinforcing: { [key: string]: boolean } = {};
+  // Care drone sunt în Autonomous RTB — traiectorie ambră intermitentă spre baza cea mai apropiată.
+  private rtb: { [key: string]: boolean } = {};
   // Ultima poziție simulată per dronă (id), folosită ca punct de plecare pentru rutare.
   private lastPositions: { [key: string]: { lat: number; lng: number } } = {};
   // Layer editabil cu poligoanele No-Fly Zone desenate de operator.
@@ -195,7 +197,8 @@ export class AppComponent implements OnInit {
       if (!drone) return;
 
       const reinforcement = msg.reinforcement === true;
-      this.applyRoute(drone.id, msg.waypoints, reinforcement);
+      const rtb = msg.rtb === true;
+      this.applyRoute(drone.id, msg.waypoints, reinforcement, rtb);
 
       // Fleet Commander: dacă e un ordin de reinforcement, "scramble" drona (dacă nu zboară deja)
       // ca să pornească autonom spre amenințare.
@@ -207,9 +210,15 @@ export class AppComponent implements OnInit {
   }
 
   /** Aplică o coadă de waypoint-uri (fiecare [lat,lng]) și redesenează traiectoria. */
-  private applyRoute(droneId: string, waypoints: number[][], reinforcement = false): void {
+  private applyRoute(
+    droneId: string,
+    waypoints: number[][],
+    reinforcement = false,
+    rtb = false,
+  ): void {
     this.flightPlans[droneId] = waypoints.map((w) => ({ lat: w[0], lng: w[1] }));
     this.reinforcing[droneId] = reinforcement;
+    this.rtb[droneId] = rtb;
     this.drawFlightPath(droneId);
     this.cdr.markForCheck();
   }
@@ -228,14 +237,24 @@ export class AppComponent implements OnInit {
       [start.lat, start.lng],
       ...plan.map((w) => [w.lat, w.lng] as L.LatLngExpression),
     ];
+    // Precedență: RTB (ambru intermitent) > reinforcement (roșu animat) > normal (cyan).
+    const rtb = this.rtb[droneId];
     const reinforce = this.reinforcing[droneId];
+    let color = '#00f3ff';
+    let className = '';
+    if (rtb) {
+      color = '#ffb300';
+      className = 'rtb-path';
+    } else if (reinforce) {
+      color = '#ff003c';
+      className = 'reinforce-path';
+    }
     this.flightPaths[droneId] = L.polyline(points, {
-      // Ruta de reinforcement (Fleet Commander) e roșie, mai groasă și animată (dash-flow).
-      color: reinforce ? '#ff003c' : '#00f3ff',
-      weight: reinforce ? 3 : 2,
+      color,
+      weight: rtb || reinforce ? 3 : 2,
       dashArray: '5, 10',
-      opacity: reinforce ? 0.9 : 0.7,
-      className: reinforce ? 'reinforce-path' : '',
+      opacity: rtb || reinforce ? 0.9 : 0.7,
+      className,
     }).addTo(this.map);
   }
 
@@ -287,6 +306,7 @@ export class AppComponent implements OnInit {
         battery: live.battery,
         report: live.report,
         threat_level: live.threat_level,
+        status: live.status,
       };
     });
   }
@@ -295,7 +315,9 @@ export class AppComponent implements OnInit {
     Object.keys(drones).forEach((key) => {
       const d = drones[key];
       const isThreat = d.threat_level === 'THREAT';
-      const color = isThreat ? '#ff003c' : '#00f3ff';
+      const isRtb = d.status === 'RTB';
+      // RTB (ambru) are precedență — protocol autonom de aterizare de urgență.
+      const color = isRtb ? '#ffb300' : isThreat ? '#ff003c' : '#00f3ff';
 
       // --- LOGICA NOUĂ PENTRU IMAGINE ---
       let imageHtml = '';

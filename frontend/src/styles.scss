@@ -27,6 +27,21 @@
   }
 }
 
+/* Autonomous RTB route: flashing amber path signalling an emergency landing sequence */
+.rtb-path {
+  animation: rtb-flash 0.8s ease-in-out infinite;
+  filter: drop-shadow(0 0 5px rgba(255, 179, 0, 0.8));
+}
+@keyframes rtb-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
 body,
 html {
   margin: 0;
