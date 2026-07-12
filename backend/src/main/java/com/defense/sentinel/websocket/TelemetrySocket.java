@@ -77,21 +77,28 @@ public class TelemetrySocket {
   }
 
   public void broadcastPath(String callSign, List<double[]> waypoints) {
-    broadcastPath(callSign, waypoints, false);
+    broadcastPath(callSign, waypoints, false, false);
+  }
+
+  public void broadcastPath(String callSign, List<double[]> waypoints, boolean reinforcement) {
+    broadcastPath(callSign, waypoints, reinforcement, false);
   }
 
   /**
    * Broadcast a route for a drone. Sent as a discriminated message ({@code type: "path"}) so the
    * frontend can tell it apart from the bare drone-state snapshot (which has no {@code type} key),
    * leaving the Reactive Radar telemetry contract untouched. {@code waypoints} are {@code [lat, lng]}.
-   * {@code reinforcement} flags an autonomous Fleet Commander order so the UI renders it distinctly.
+   * {@code reinforcement} flags an autonomous Fleet Commander order and {@code rtb} an Autonomous
+   * Return-To-Base override, so the UI renders each route distinctly.
    */
-  public void broadcastPath(String callSign, List<double[]> waypoints, boolean reinforcement) {
+  public void broadcastPath(
+      String callSign, List<double[]> waypoints, boolean reinforcement, boolean rtb) {
     Map<String, Object> message = new HashMap<>();
     message.put("type", "path");
     message.put("callSign", callSign);
     message.put("waypoints", waypoints);
     message.put("reinforcement", reinforcement);
+    message.put("rtb", rtb);
     try {
       fanOut(objectMapper.writeValueAsString(message));
     } catch (Exception e) {
