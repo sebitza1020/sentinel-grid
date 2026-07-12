@@ -5,6 +5,7 @@ import com.defense.sentinel.client.WebhookClient;
 import com.defense.sentinel.service.FirebaseService;
 import com.defense.sentinel.service.FleetCommanderService;
 import com.defense.sentinel.service.IntelligenceService;
+import com.defense.sentinel.service.MissionDebriefService;
 import com.defense.sentinel.websocket.TelemetrySocket;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -38,6 +39,9 @@ public class TelemetrieResource {
 
     @Inject
     FleetCommanderService fleetCommanderService;
+
+    @Inject
+    MissionDebriefService missionDebriefService;
 
     @GET
     public List<Drone> listAll() {
@@ -82,6 +86,9 @@ public class TelemetrieResource {
             // Frontend-ul (popup + imaginea recon + Black Box) citește "report"; înainte
             // scriam "last_report", așa că raportul apărea mereu ca "No report".
             update.put("report", data.report);
+
+            // Mission Debrief: consemnăm verdictul în jurnalul cronologic al sesiunii.
+            missionDebriefService.recordVerdict(callSign, threatLevel, data.report);
 
             // LOGICA NOUĂ DE ALERTĂ
             if ("THREAT".equals(threatLevel)) {

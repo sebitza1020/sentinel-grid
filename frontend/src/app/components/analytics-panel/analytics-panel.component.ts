@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges } from '@angular/core';
 import { ChartConfiguration, ChartData } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
+import { DroneApiService } from '../../services/drone-api.service';
 
 /** Cyberpunk palette shared with the rest of the HUD. */
 const CYAN = '#00f3ff';
@@ -14,9 +15,9 @@ const AMBER = '#ffb300';
  *  - a bar chart of per-unit battery levels,
  *  - and a few raw text stats.
  *
- * It is a dumb/presentational component: it recomputes everything from the
- * `drones` input via ngOnChanges, so the parent just has to hand it a fresh
- * array whenever the fleet state changes.
+ * Charts recompute purely from the `drones` input via ngOnChanges, so the
+ * parent just hands it a fresh array whenever the fleet state changes. The
+ * panel also hosts the Mission Debrief PDF export action.
  */
 @Component({
   selector: 'app-analytics-panel',
@@ -33,11 +34,47 @@ export class AnalyticsPanelComponent implements OnChanges {
   avgBattery = 0;
   avgAltitude = 0;
 
+  // --- Mission Debrief export ---
+  exporting = false;
+
+  constructor(
+    private api: DroneApiService,
+    private cdr: ChangeDetectorRef,
+  ) {}
+
+  /** Descarcă debrief-ul PDF și îl salvează local ca sentinel-debrief-<timestamp>.pdf. */
+  onExport(): void {
+    if (this.exporting) return;
+    this.exporting = true;
+
+    this.api.exportDebriefPdf().subscribe({
+      next: (blob) => {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `sentinel-debrief-${stamp}.pdf`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+
+        this.exporting = false;
+        this.cdr.markForCheck(); // zoneless: repunem butonul în starea normală
+      },
+      error: (err) => {
+        console.warn('⚠️ Debrief export failed:', err.status);
+        this.exporting = false;
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
   // --- Doughnut: Threat Ratio (SAFE vs THREAT) ---
   threatChartType: ChartConfiguration<'doughnut'>['type'] = 'doughnut';
   threatChartData: ChartData<'doughnut'> = {
     labels: ['SAFE', 'THREAT'],
-    datasets: [{ data: [0, 0], backgroundColor: [CYAN, RED], borderColor: '#0b101e', borderWidth: 2 }],
+    datasets: [
+      { data: [0, 0], backgroundColor: [CYAN, RED], borderColor: '#0b101e', borderWidth: 2 },
+    ],
   };
   threatChartOptions: ChartConfiguration<'doughnut'>['options'] = {
     responsive: true,
@@ -46,7 +83,11 @@ export class AnalyticsPanelComponent implements OnChanges {
     plugins: {
       legend: {
         position: 'bottom',
-        labels: { color: '#9fb2c8', font: { family: 'Courier New, monospace', size: 11 }, boxWidth: 12 },
+        labels: {
+          color: '#9fb2c8',
+          font: { family: 'Courier New, monospace', size: 11 },
+          boxWidth: 12,
+        },
       },
       tooltip: { bodyColor: '#e0e0e0', titleColor: CYAN },
     },
@@ -56,7 +97,9 @@ export class AnalyticsPanelComponent implements OnChanges {
   batteryChartType: ChartConfiguration<'bar'>['type'] = 'bar';
   batteryChartData: ChartData<'bar'> = {
     labels: [],
-    datasets: [{ data: [], label: 'Battery %', backgroundColor: CYAN, borderRadius: 3, maxBarThickness: 42 }],
+    datasets: [
+      { data: [], label: 'Battery %', backgroundColor: CYAN, borderRadius: 3, maxBarThickness: 42 },
+    ],
   };
   batteryChartOptions: ChartConfiguration<'bar'>['options'] = {
     responsive: true,
@@ -70,7 +113,11 @@ export class AnalyticsPanelComponent implements OnChanges {
       y: {
         beginAtZero: true,
         max: 100,
-        ticks: { color: '#9fb2c8', font: { family: 'Courier New, monospace', size: 10 }, callback: (v) => v + '%' },
+        ticks: {
+          color: '#9fb2c8',
+          font: { family: 'Courier New, monospace', size: 10 },
+          callback: (v) => v + '%',
+        },
         grid: { color: 'rgba(0, 243, 255, 0.08)' },
       },
     },
@@ -82,7 +129,11 @@ export class AnalyticsPanelComponent implements OnChanges {
 
   /** True once we've received any live telemetry for a unit (position/battery/status). */
   private hasTelemetry(d: any): boolean {
-    return this.num(d?.battery) !== null || this.num(d?.alt ?? d?.altitude) !== null || this.num(d?.lat) !== null;
+    return (
+      this.num(d?.battery) !== null ||
+      this.num(d?.alt ?? d?.altitude) !== null ||
+      this.num(d?.lat) !== null
+    );
   }
 
   private num(v: any): number | null {
@@ -109,7 +160,12 @@ export class AnalyticsPanelComponent implements OnChanges {
     this.threatChartData = {
       labels: ['SAFE', 'THREAT'],
       datasets: [
-        { data: [safeCount, threatCount], backgroundColor: [CYAN, RED], borderColor: '#0b101e', borderWidth: 2 },
+        {
+          data: [safeCount, threatCount],
+          backgroundColor: [CYAN, RED],
+          borderColor: '#0b101e',
+          borderWidth: 2,
+        },
       ],
     };
 

@@ -2,6 +2,9 @@
   <div class="panel-title">
     <span class="title-main">BLACK BOX</span>
     <span class="title-sub">// FLEET ANALYTICS</span>
+    <button class="export-btn" type="button" [disabled]="exporting" (click)="onExport()">
+      {{ exporting ? '[ COMPILING... ]' : '[ EXPORT MISSION DEBRIEF PDF ]' }}
+    </button>
   </div>
 
   <div class="analytics-grid">
@@ -13,7 +16,9 @@
       </div>
       <div class="stat-card">
         <span class="stat-label">AVG BATTERY</span>
-        <span class="stat-value" [class.low]="avgBattery < 20">{{ avgBattery }}<span class="stat-unit">%</span></span>
+        <span class="stat-value" [class.low]="avgBattery < 20"
+          >{{ avgBattery }}<span class="stat-unit">%</span></span
+        >
       </div>
       <div class="stat-card">
         <span class="stat-label">AVG ALTITUDE</span>
