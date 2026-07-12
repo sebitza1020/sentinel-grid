@@ -6,6 +6,7 @@ import com.defense.sentinel.service.FirebaseService;
 import com.defense.sentinel.service.FleetCommanderService;
 import com.defense.sentinel.service.IntelligenceService;
 import com.defense.sentinel.service.MissionDebriefService;
+import com.defense.sentinel.service.RtbService;
 import com.defense.sentinel.websocket.TelemetrySocket;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -42,6 +43,9 @@ public class TelemetrieResource {
 
     @Inject
     MissionDebriefService missionDebriefService;
+
+    @Inject
+    RtbService rtbService;
 
     @GET
     public List<Drone> listAll() {
@@ -114,6 +118,10 @@ public class TelemetrieResource {
 
             System.out.println("⚠️ AI Verdict: " + threatLevel);
         }
+
+        // Autonomous RTB: decay the battery and, if critical, override the waypoint to the nearest
+        // base. Mutates `update` (battery + status/target) before it is persisted and broadcast.
+        rtbService.apply(callSign, data.lat, data.lng, update);
 
         firebaseService.getTelemetryRef().child(callSign).updateChildrenAsync(update);
 
