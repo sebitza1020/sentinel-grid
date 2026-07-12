@@ -2,6 +2,7 @@
 *.pem
 CLAUDE.md
 AGENTS.md
+docs/sentinel_grid_brainstorming_session_*.md
 
 # Root-level tooling (Husky + lint-staged) dependencies
 /node_modules/
