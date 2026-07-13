@@ -1,13 +1,14 @@
 # 🛡️ Sentinel Grid - Autonomous Drone Surveillance System
 
 ![Project Status](https://img.shields.io/badge/Status-Operational-success)
-![Java](https://img.shields.io/badge/Backend-Quarkus-red)
-![Angular](https://img.shields.io/badge/Frontend-Angular_18-dd0031)
-![AI](https://img.shields.io/badge/AI-Ollama_gemma4:12b-blue)
+![Java](https://img.shields.io/badge/Backend-Quarkus_3.30-red)
+![Angular](https://img.shields.io/badge/Frontend-Angular_21-dd0031)
+![AI](https://img.shields.io/badge/AI-Ollama_%7C_Groq-blue)
+![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF)
 
-**Sentinel Grid** is a full-stack, distributed surveillance system designed to manage autonomous drone fleets, analyze telemetry in real-time using Generative AI, and trigger strategic alerts for detected threats.
+**Sentinel Grid** is a full-stack, distributed surveillance system designed to manage autonomous drone fleets, analyze telemetry in real-time using Generative AI, and take autonomous tactical action — reinforcing threats and returning low-battery assets to base without an operator in the loop.
 
-Built with a microservices architecture, it leverages **Quarkus** for high-performance backend processing, **Angular** for the tactical dashboard, and a **local Ollama (`gemma4:12b`)** model for intelligent threat analysis.
+Built with a microservices architecture, it leverages **Quarkus** for high-performance backend processing, **Angular 21** (standalone, zoneless) for the tactical dashboard, and a **hybrid AI router** (local **Ollama** for dev, hosted **Groq** for prod) for intelligent threat analysis.
 
 ---
 
@@ -16,7 +17,7 @@ Built with a microservices architecture, it leverages **Quarkus** for high-perfo
 ### 1. Tactical Dashboard (Real-time Tracking)
 
 ![Dashboard Map](screenshots/map_view.png)
-*Live tracking of drone assets. Red indicators signify active threats detected by AI.*
+*Live tracking of drone assets over a WebSocket feed. Red indicators signify active threats detected by AI; amber indicators signify units in Autonomous Return-To-Base.*
 
 ### 2. Fleet Command (Management & Simulation)
 
@@ -26,36 +27,43 @@ Built with a microservices architecture, it leverages **Quarkus** for high-perfo
 ### 3. AI Intelligence & Alerting
 
 ![Email Alert](screenshots/email_alert.png)
-*Automated email alerts triggered when the local AI identifies a high-risk situation.*
+*Automated email alerts triggered when the AI identifies a high-risk situation.*
 
 ### 4. "Black Box" Fleet Analytics
 
 ![Black Box Analytics](screenshots/black_box_analytics.png)
-*Real-time analytics panel beneath the map: SAFE vs THREAT ratio, per-unit battery levels (colour-graded), and live fleet stats (active units, average battery, average altitude).*
+*Real-time analytics panel beneath the map: SAFE vs THREAT ratio, per-unit battery levels (colour-graded, amber while a unit is in RTB), and live fleet stats. Exports a tactical debrief PDF on demand.*
 
 ### 5. Atmospheric Sensors
 
 ![Atmospheric Sensors](screenshots/atmospheric_sensors.png)
-*Live weather HUD for the theatre of operations (Bucharest): temperature, wind speed, and humidity, sourced from Open-Meteo and cached server-side.*
+*Live weather HUD for the theatre of operations (Bucharest): temperature, wind speed, and humidity, sourced from Open-Meteo and cached server-side. Wind also feeds the drone energy-decay model.*
+
+### 6. Autonomous Operations (Geofencing · Fleet Commander · RTB)
+
+![Autonomous Tactical View](screenshots/tactical_dashboard.png)
+*The live tactical view showing the newer autonomous systems at once: a **No-Fly Zone** (red polygon), an **AI Fleet Commander** reinforcement route (red dashed — a SAFE unit vectored onto a THREAT contact), and an **Autonomous RTB** route (amber) for a critically-low unit returning to base.*
 
 ---
 
 ## 🏗️ System Architecture
 
-The system follows a hybrid cloud architecture designed for low latency and high resilience:
+The system follows a hybrid architecture designed for low latency, real-time reactivity, and autonomous decision-making:
 
-1.  **Frontend (Angular Standalone):**
+1.  **Frontend (Angular 21 Standalone, Zoneless):**
     * Serves as the Command & Control (C2) interface.
-    * Visualizes telemetry on a **Leaflet.js** map.
-    * Communicates with the Backend via REST API.
-    * Listens to **Firebase Realtime Database** for live position updates.
+    * Visualizes telemetry on a **Leaflet.js** map with animated flight paths.
+    * Manages the fleet and simulation via REST API.
+    * Streams live position, path, and status updates over a **native WebSocket** (`/ws/telemetry`).
+    * Lets operators sketch **No-Fly Zones** directly on the map with `leaflet-draw`.
 
-2.  **Backend (Java Quarkus):**
-    * Exposes REST endpoints for Fleet Management (CRUD) and Telemetry Ingestion.
+2.  **Backend (Java 21 / Quarkus):**
+    * Exposes REST endpoints for Fleet Management (CRUD), Telemetry Ingestion, Navigation, Geofencing, and Analytics.
     * Persists fleet inventory in **PostgreSQL (Neon DB)** via Hibernate/Panache.
-    * **AI Integration:** Forwards unstructured drone reports to a **local Ollama (`gemma4:12b`)** instance.
-    * **Hot Storage:** Pushes processed telemetry to Firebase for instant frontend updates.
-    * **Atmospheric Sensors:** Proxies live Bucharest weather from the free **Open-Meteo** API through `/api/weather`, with a server-side TTL cache (stale-on-error fallback) to stay well under the upstream rate limit.
+    * **Hybrid AI Router:** Forwards unstructured drone reports to either a **local Ollama** model or the **hosted Groq** API, selected per-environment via the `sentinel.ai.engine` property.
+    * **Reactive Broadcast:** Fans out processed telemetry to all connected dashboards over a Jakarta **WebSocket** endpoint.
+    * **Autonomous Agents:** Reroutes drones to reinforce detected threats (Fleet Commander) and to return home when battery is critical (RTB engine).
+    * **Atmospheric Sensors:** Proxies live Bucharest weather from **Open-Meteo** through `/api/weather` with a server-side TTL cache (stale-on-error fallback).
 
 3.  **Alerting Layer:**
     * If the AI verdicts a `THREAT`, the backend triggers a serverless Google Apps Script webhook to send "Red Alert" emails.
@@ -67,36 +75,73 @@ The system follows a hybrid cloud architecture designed for low latency and high
 ### Backend & Infrastructure
 
 * **Language:** Java 21
-* **Framework:** Quarkus (Supersonic Subatomic Java)
-* **Database:** PostgreSQL (managed by Neon.tech)
-* **Real-time Store:** Firebase Realtime Database
+* **Framework:** Quarkus 3.30 (Supersonic Subatomic Java)
+* **Database:** PostgreSQL (managed by Neon.tech), Hibernate ORM with Panache
+* **Real-time:** Jakarta WebSockets (`quarkus-websockets`, `@ServerEndpoint`)
+* **AI Clients:** MicroProfile REST Client (Ollama + Groq, OpenAI-compatible)
 * **Weather Data:** Open-Meteo API (cached via `/api/weather`)
+* **PDF Reporting:** OpenPDF (tactical mission debriefs)
+* **Code Style:** Spotless (Google-style import ordering, unused-import removal)
 * **Containerization:** Docker
 * **Hosting:** Render.com (Cloud Deployment)
 
 ### Frontend
 
-* **Framework:** Angular 18+ (Standalone Components)
+* **Framework:** Angular 21 (Standalone Components, Zoneless change detection)
 * **Styling:** SCSS (Cyberpunk/Military aesthetic)
-* **Mapping:** Leaflet.js + CartoDB Dark Matter tiles
+* **Mapping:** Leaflet.js + CartoDB Dark Matter tiles + `leaflet-draw`
+* **Real-time:** RxJS `webSocket()` over `/ws/telemetry`
 * **Analytics:** Chart.js + ng2-charts (real-time fleet charts)
 
 ### Artificial Intelligence
 
-* **Model:** Local Ollama running `gemma4:12b`
+* **Engines:** Local **Ollama** (`gemma4:12b`) for development; hosted **Groq** (`llama-3.1-8b-instant`) for production.
+* **Router:** Selected per-environment via `sentinel.ai.engine` (`ollama` in dev, `groq` in `%prod`).
 * **Role:** Natural Language Processing (NLP) on drone field reports to determine threat levels (`SAFE`, `THREAT`).
 
 ---
 
 ## 🕹️ Features
 
+### Core Surveillance
+
 * **Fleet Management (CRUD):** Deploy and decommission drones via a secured Admin Sidebar.
-* **Autonomous Simulation:** "Play" mode for drones that generates GPS paths and randomized field reports (e.g., "Sector Clear" vs "Armed Convoy").
-* **AI-Powered Analysis:** Drones don't just send coordinates; they send text reports. The system reads them and decides the threat level automatically.
-* **"Black Box" Analytics:** A real-time panel below the map visualizes fleet status — a SAFE/THREAT doughnut, per-unit battery bars, and live stats — recomputed as telemetry streams in.
+* **Autonomous Simulation:** "Play" mode that generates GPS paths and randomized field reports (e.g., "Sector Clear" vs "Armed Convoy").
+* **AI-Powered Analysis:** Drones send text reports, not just coordinates. A hybrid Ollama/Groq router reads them and assigns the threat level automatically.
+* **Reactive Radar (Live Telemetry):** Position, path, and status updates stream to every connected dashboard over a native WebSocket (`/ws/telemetry`) — no polling, sub-second latency.
+* **Red-Alert Emailing:** A `THREAT` verdict fires a serverless webhook that emails a tactical alert.
+
+### Autonomous Tactics
+
+* **Geofencing & Pathfinding:** Operators sketch **No-Fly Zones** on the map; the backend `NavigationService` computes evasion routes that steer drones around restricted airspace.
+* **AI Fleet Commander:** On a `THREAT` verdict, the closest available drone (chosen by Haversine distance, filtered by battery and threat state) is autonomously rerouted to reinforce the contact — rendered as a red, flowing reinforcement path.
+* **Autonomous Emergency RTB:** A backend energy-decay engine drains battery from base load, speed, and live wind. When a unit drops below the critical threshold it is autonomously routed to the nearest base station (`status = RTB`), rendered as an amber flashing landing route, then lands and recharges.
+
+### Intelligence & Reporting
+
+* **"Black Box" Analytics:** A real-time panel below the map — a SAFE/THREAT doughnut, per-unit battery bars (amber while in RTB), and live stats — recomputed as telemetry streams in.
+* **Mission Debrief (PDF):** One-click export of a cyber-styled tactical debrief PDF (OpenPDF), including a chronological log of every AI verdict from the session.
 * **Atmospheric Sensors:** A live weather HUD (temperature, wind, humidity) for the operational theatre, pulled from Open-Meteo and cached server-side to neutralize rate limits.
+
+### Platform & Delivery
+
 * **Optimistic UI:** Instant visual feedback for fleet operations.
 * **Resilient Connectivity:** CORS-configured, SSL-secured communication between distributed services.
+* **CI/CD Guardrails ("Iron Gate"):** Husky + lint-staged pre-commit hooks (Spotless on the backend, ESLint/Prettier on the frontend) plus a GitHub Actions pipeline running parallel **Backend (Quarkus / Java 21)** and **Frontend (Angular 21)** builds, format checks, and tests on every PR to `main`.
+
+---
+
+## 🛰️ REST & WebSocket Surface
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET  /api/drones` | List the fleet. |
+| `POST /api/drones/{callSign}/ping` | Ingest a drone telemetry tick (drives AI, RTB, and broadcast). |
+| `GET  /api/weather` | Cached Bucharest weather (Atmospheric Sensors). |
+| `POST /api/navigation/route` | Compute an evasion route around active No-Fly Zones. |
+| `GET / POST /api/geofences` | List and create No-Fly Zones. |
+| `GET  /api/analytics/export` | Export the Mission Debrief PDF. |
+| `WS   /ws/telemetry` | Live position/path/status broadcast to dashboards. |
 
 ---
 
@@ -116,11 +161,15 @@ cd backend
 # DATABASE_URL=jdbc:postgresql://...
 # FIREBASE_URL=...
 
-# AI runs on Ollama. For local dev, pull the model and run it:
+# --- AI engine selection ---
+# Dev defaults to local Ollama; pull the model and run it:
 #   ollama pull gemma4:12b   (served at http://localhost:11434)
-# In other environments, override via env vars:
 #   OLLAMA_API_URL=http://<host>:11434/api   (default: http://localhost:11434/api)
 #   OLLAMA_MODEL=gemma4:12b
+#
+# Production (%prod) uses hosted Groq instead of local weights:
+#   sentinel.ai.engine=groq
+#   GROQ_API_KEY=<your-key>   (GROQ_API_URL defaults to https://api.groq.com/openai/v1)
 
 ./mvnw quarkus:dev
 ```
@@ -140,10 +189,20 @@ docker build -f backend/src/main/docker/Dockerfile.jvm -t sentinel-api .
 docker run -i --rm -p 8080:8080 sentinel-api
 ```
 
+### 4. Quality Gates (run before pushing)
+
+```bash
+# Backend: format-check + build + tests
+cd backend && ./mvnw -B clean verify
+
+# Frontend: build, lint, and tests
+cd frontend && npm run build && npm run lint && npm run test:ci
+```
+
 ---
 
 ## 🎖️ Acknowledgments
 
-This project demonstrates the integration of modern cloud-native Java with reactive frontend frameworks and Generative AI, simulating a defense-grade software solution.
+This project demonstrates the integration of modern cloud-native Java with a reactive, zoneless frontend and Generative AI — simulating a defense-grade software solution with autonomous tactical decision-making.
 
 **Status:** Mission Accomplished. 🛡️
