@@ -39,6 +39,11 @@ Built with a microservices architecture, it leverages **Quarkus** for high-perfo
 ![Atmospheric Sensors](screenshots/atmospheric_sensors.png)
 *Live weather HUD for the theatre of operations (Bucharest): temperature, wind speed, and humidity, sourced from Open-Meteo and cached server-side. Wind also feeds the drone energy-decay model.*
 
+### 6. Autonomous Operations (Geofencing · Fleet Commander · RTB)
+
+![Autonomous Tactical View](screenshots/tactical_dashboard.png)
+*The live tactical view showing the newer autonomous systems at once: a **No-Fly Zone** (red polygon), an **AI Fleet Commander** reinforcement route (red dashed — a SAFE unit vectored onto a THREAT contact), and an **Autonomous RTB** route (amber) for a critically-low unit returning to base.*
+
 ---
 
 ## 🏗️ System Architecture
