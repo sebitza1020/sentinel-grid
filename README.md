@@ -185,7 +185,7 @@ npm start
 ### 3. Running with Docker
 
 ```bash
-docker build -f backend/src/main/docker/Dockerfile.jvm -t sentinel-api .
+docker build -f backend/Dockerfile -t sentinel-api backend
 docker run -i --rm -p 8080:8080 sentinel-api
 ```
 
