@@ -1,33 +1,32 @@
-## STAGE 1: Build - Compilăm aplicația folosind Maven
-FROM maven:3.9.6-eclipse-temurin-21 AS build
-WORKDIR /app
+# syntax=docker/dockerfile:1.7
 
-# Copiem fișierele de configurare pentru a cache-ui dependențele
-COPY pom.xml .
-# (Opțional) Dacă ai settings.xml, îl copiezi și pe el
-RUN mvn dependency:go-offline
+FROM maven:3.9.11-eclipse-temurin-21-alpine AS build
+WORKDIR /workspace
 
-# Copiem sursele
-COPY src ./src
+# The builder's Maven 3.9.11 version matches .mvn/wrapper/maven-wrapper.properties.
+# Resolve build plugins and dependencies before copying sources so this layer is reusable.
+COPY pom.xml pom.xml
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B --no-transfer-progress dependency:go-offline
 
-# Compilăm aplicația (fără teste pentru viteză la deploy)
-RUN mvn package -DskipTests
+COPY src src
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B --no-transfer-progress package -DskipTests
 
-## STAGE 2: Run - Imaginea finală, mică și rapidă
-FROM eclipse-temurin:21-jre-alpine
-WORKDIR /app
+FROM eclipse-temurin:21-jre-alpine AS runtime
 
-# Copiem doar ce avem nevoie din Stage 1
-COPY --from=build /app/target/quarkus-app/lib/ /app/lib/
-COPY --from=build /app/target/quarkus-app/*.jar /app/
-COPY --from=build /app/target/quarkus-app/app/ /app/app/
-COPY --from=build /app/target/quarkus-app/quarkus/ /app/quarkus/
+RUN addgroup -S sentinel && adduser -S -G sentinel -h /opt/sentinel sentinel
+WORKDIR /opt/sentinel
 
-# Expunem portul 8080
+# Preserve Quarkus fast-jar layers so dependency-only layers remain cacheable.
+COPY --from=build --chown=sentinel:sentinel /workspace/target/quarkus-app/lib/ ./lib/
+COPY --from=build --chown=sentinel:sentinel /workspace/target/quarkus-app/*.jar ./
+COPY --from=build --chown=sentinel:sentinel /workspace/target/quarkus-app/app/ ./app/
+COPY --from=build --chown=sentinel:sentinel /workspace/target/quarkus-app/quarkus/ ./quarkus/
+
+USER sentinel
 EXPOSE 8080
 
-# Definim variabile de mediu implicite (pot fi suprascrise la rulare)
-ENV JAVA_OPTS="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+ENV JAVA_TOOL_OPTIONS="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 
-# Comanda de start
-CMD ["java", "-jar", "quarkus-run.jar"]
+ENTRYPOINT ["java", "-jar", "quarkus-run.jar"]
