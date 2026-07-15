@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { retry } from 'rxjs/operators';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
+import { TelemetrySnapshot } from '../models/drone.model';
 
 @Injectable({
   providedIn: 'root',
@@ -9,7 +10,7 @@ import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 export class TelemetryService {
   // BehaviorSubject va ține ultima stare a flotei și va notifica harta când apar schimbări.
   // Contract păstrat: obiect keyed by callSign (aceeași formă emisă înainte de Firebase).
-  public dronePositions$ = new BehaviorSubject<any>({});
+  public dronePositions$ = new BehaviorSubject<TelemetrySnapshot>({});
 
   // Rute de evaziune calculate de backend (mesaje discriminate cu type: "path").
   public dronePaths$ = new Subject<any>();

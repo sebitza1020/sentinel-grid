@@ -16,6 +16,107 @@
   color: #00f3ff;
 }
 
+/* Leaflet mounts popups outside Angular's component tree, so dossier styling lives globally. */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgba(8, 15, 22, 0.97);
+  color: #e0e0e0;
+}
+.leaflet-popup-content-wrapper {
+  border: 1px solid rgba(0, 243, 255, 0.4);
+  border-radius: 3px;
+  box-shadow: 0 0 18px rgba(0, 243, 255, 0.18);
+}
+.leaflet-popup-content {
+  margin: 14px;
+}
+.leaflet-tooltip {
+  background: rgba(8, 15, 22, 0.92);
+  border: 1px solid rgba(0, 243, 255, 0.45);
+  color: #00f3ff;
+  font:
+    0.7rem 'Courier New',
+    monospace;
+  letter-spacing: 0.05em;
+}
+.drone-popup {
+  min-width: 270px;
+  font-family: 'Courier New', monospace;
+}
+.drone-popup-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--unit-accent) 35%, transparent);
+}
+.drone-popup-header strong {
+  color: var(--unit-accent);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+}
+.drone-popup-header span,
+.drone-popup-status {
+  color: #83909b;
+  font-size: 0.68rem;
+}
+.drone-popup-status {
+  margin: 8px 0;
+}
+.drone-popup-status b {
+  color: var(--unit-accent);
+}
+.dossier-grid-popup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.dossier-grid-popup > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid rgba(0, 243, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+}
+.dossier-grid-popup span,
+.drone-popup .dossier-modes > span {
+  color: #73808b;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+}
+.dossier-grid-popup b {
+  font-size: 0.68rem;
+}
+.drone-popup .dossier-modes {
+  margin-top: 8px;
+}
+.drone-popup .dossier-modes > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.drone-popup .dossier-chip {
+  padding: 3px 5px;
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  color: #00f3ff;
+  background: rgba(0, 243, 255, 0.07);
+  font-size: 0.58rem;
+}
+.drone-popup .dossier-chip-muted {
+  color: #6f7b84;
+  border-color: #44515d;
+}
+.drone-popup-report {
+  margin: 9px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: #aab2b8;
+  font-size: 0.67rem;
+  font-style: italic;
+}
+
 /* Fleet Commander reinforcement route: red path whose dashes "flow" toward the threat */
 .reinforce-path {
   animation: dash-flow 1s linear infinite;

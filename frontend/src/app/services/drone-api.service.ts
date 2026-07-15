@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { Drone, DroneCreateRequest } from '../models/drone.model';
 
 @Injectable({ providedIn: 'root' })
 export class DroneApiService {
@@ -40,12 +41,12 @@ export class DroneApiService {
     return this.http.get<any>(this.weatherUrl);
   }
 
-  getAll(): Observable<any[]> {
-    return this.http.get<any[]>(this.apiUrl);
+  getAll(): Observable<Drone[]> {
+    return this.http.get<Drone[]>(this.apiUrl);
   }
 
-  create(drone: any): Observable<any> {
-    return this.http.post<any>(this.apiUrl, drone);
+  create(drone: DroneCreateRequest): Observable<Drone> {
+    return this.http.post<Drone>(this.apiUrl, drone);
   }
 
   delete(id: string): Observable<any> {

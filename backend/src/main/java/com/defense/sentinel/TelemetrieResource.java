@@ -11,6 +11,7 @@ import com.defense.sentinel.websocket.TelemetrySocket;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -54,12 +55,8 @@ public class TelemetrieResource {
 
     @POST
     @Transactional
-    public Response enlistDrone(Drone drone) {
-        if (drone.callSign == null) {
-            return Response.status(400).entity("Call Sign is mandatory").build();
-        }
-
-        drone.status = "OFFLINE";
+    public Response enlistDrone(@Valid DroneCreateRequest request) {
+        Drone drone = Drone.create(request);
         drone.persist();
 
         return Response.status(201).entity(drone).build();
@@ -135,19 +132,13 @@ public class TelemetrieResource {
     @Path("/{id}")
     @Transactional
     @RolesAllowed("COMMANDER")
-    public Response updateDrone(@PathParam("id") UUID id, Drone droneUpdate) {
+    public Response updateDrone(@PathParam("id") UUID id, @Valid DroneUpdateRequest droneUpdate) {
         Drone entity = Drone.findById(id);
         if (entity == null) {
             return Response.status(404).build();
         }
 
-        // Actualizăm câmpurile permise
-        if (droneUpdate.model != null)
-            entity.model = droneUpdate.model;
-        if (droneUpdate.status != null)
-            entity.status = droneUpdate.status;
-        if (droneUpdate.callSign != null)
-            entity.callSign = droneUpdate.callSign;
+        entity.apply(droneUpdate);
 
         return Response.ok(entity).build();
     }
