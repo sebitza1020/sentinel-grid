@@ -25,29 +25,153 @@
       <div *ngIf="authService.isLoggedIn$ | async">
         <button (click)="doLogout()" class="btn-logout">LOGOUT COMMANDER</button>
 
-        <div class="panel-section deploy-section">
+        <form class="panel-section deploy-section" (ngSubmit)="addDrone()">
           <h3>Deploy New Unit</h3>
           <div class="form-grid">
             <div class="input-group">
               <label>Call Sign</label>
-              <input [(ngModel)]="newDrone.callSign" />
+              <input name="callSign" [(ngModel)]="newDrone.callSign" required maxlength="32" />
             </div>
             <div class="input-group">
               <label>Model Type</label>
-              <input [(ngModel)]="newDrone.model" />
+              <input name="model" [(ngModel)]="newDrone.model" required maxlength="80" />
             </div>
+            <div class="input-group">
+              <label>Unit Class</label>
+              <select name="modelClass" [(ngModel)]="newDrone.modelClass" required>
+                <option *ngFor="let modelClass of droneClasses" [ngValue]="modelClass">
+                  {{ formatModelClass(modelClass) }}
+                </option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Battery (mAh)</label>
+              <input
+                name="batteryCapacity"
+                [(ngModel)]="newDrone.batteryCapacity"
+                type="number"
+                min="1"
+                required
+              />
+            </div>
+            <div class="input-group">
+              <label>Top Speed (km/h)</label>
+              <input
+                name="topSpeed"
+                [(ngModel)]="newDrone.topSpeed"
+                type="number"
+                min="0.1"
+                step="0.1"
+                required
+              />
+            </div>
+            <div class="input-group">
+              <label>Radar Range (m)</label>
+              <input
+                name="radarRange"
+                [(ngModel)]="newDrone.radarRange"
+                type="number"
+                min="0.1"
+                step="0.1"
+                required
+              />
+            </div>
+            <div class="input-group">
+              <label>Payload (kg)</label>
+              <input
+                name="payloadCapacity"
+                [(ngModel)]="newDrone.payloadCapacity"
+                type="number"
+                min="0.1"
+                step="0.1"
+                required
+              />
+            </div>
+            <fieldset class="vision-selector">
+              <legend>Vision Modes</legend>
+              <button
+                *ngFor="let mode of visionModeOptions"
+                type="button"
+                class="vision-option"
+                [class.selected]="newDrone.visionModes.includes(mode)"
+                [attr.aria-pressed]="newDrone.visionModes.includes(mode)"
+                (click)="toggleVisionMode(mode)"
+              >
+                {{ mode }}
+              </button>
+            </fieldset>
           </div>
-          <button (click)="addDrone()" class="btn-deploy">DEPLOY UNIT</button>
-        </div>
+          <button type="submit" class="btn-deploy" [disabled]="!isDeployFormValid() || isLoading">
+            DEPLOY UNIT
+          </button>
+        </form>
 
         <div class="panel-section list-section">
           <div class="drone-list">
-            <div class="drone-card" *ngFor="let d of dbDrones">
-              <span class="drone-callsign">{{ d.callSign }}</span>
-              <button (click)="toggleSimulation(d)" class="btn-sim">
-                {{ isSimulating(d.id) ? '⏹' : '▶' }}
-              </button>
-              <button (click)="decommission(d.id)" class="btn-decommission">🗑️</button>
+            <div
+              class="drone-card"
+              *ngFor="let d of dbDrones; trackBy: trackDrone"
+              [class.expanded]="isDossierExpanded(d.id)"
+              (click)="toggleDossier(d)"
+              (keydown.enter)="toggleDossier(d)"
+              tabindex="0"
+              role="button"
+              [attr.aria-expanded]="isDossierExpanded(d.id)"
+              [attr.data-call-sign]="d.callSign"
+            >
+              <div class="drone-card-summary">
+                <div class="drone-info">
+                  <span class="drone-callsign">{{ d.callSign }}</span>
+                  <span class="drone-model"
+                    >{{ d.model }} // {{ formatModelClass(d.modelClass) }}</span
+                  >
+                </div>
+                <div class="drone-actions">
+                  <button
+                    type="button"
+                    (click)="$event.stopPropagation(); toggleSimulation(d)"
+                    class="btn-sim"
+                    [class.active]="isSimulating(d.id)"
+                    [attr.aria-label]="'Toggle simulation for ' + d.callSign"
+                  >
+                    {{ isSimulating(d.id) ? '⏹' : '▶' }}
+                  </button>
+                  <button
+                    type="button"
+                    (click)="$event.stopPropagation(); decommission(d.id)"
+                    class="btn-decommission"
+                    [attr.aria-label]="'Decommission ' + d.callSign"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+
+              <div class="dossier-panel" *ngIf="isDossierExpanded(d.id)">
+                <div class="dossier-grid">
+                  <div>
+                    <span>CLASS</span><b>{{ formatModelClass(d.modelClass) }}</b>
+                  </div>
+                  <div>
+                    <span>TOP SPEED</span><b>{{ d.topSpeed | number: '1.0-1' }} km/h</b>
+                  </div>
+                  <div>
+                    <span>RADAR</span><b>{{ d.radarRange | number: '1.0-1' }} m</b>
+                  </div>
+                  <div>
+                    <span>PAYLOAD</span><b>{{ d.payloadCapacity | number: '1.0-1' }} kg</b>
+                  </div>
+                  <div>
+                    <span>BATTERY</span><b>{{ d.batteryCapacity | number }} mAh</b>
+                  </div>
+                </div>
+                <div class="dossier-modes">
+                  <span>ACTIVE VISION MODES</span>
+                  <div>
+                    <span class="dossier-chip" *ngFor="let mode of d.visionModes">{{ mode }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

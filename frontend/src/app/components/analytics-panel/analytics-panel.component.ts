@@ -3,6 +3,7 @@ import { ChangeDetectorRef, Component, Input, OnChanges } from '@angular/core';
 import { ChartConfiguration, ChartData } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { DroneApiService } from '../../services/drone-api.service';
+import { FleetDrone } from '../../models/drone.model';
 
 /** Cyberpunk palette shared with the rest of the HUD. */
 const CYAN = '#00f3ff';
@@ -27,7 +28,7 @@ const AMBER = '#ffb300';
   styleUrls: ['./analytics-panel.component.scss'],
 })
 export class AnalyticsPanelComponent implements OnChanges {
-  @Input() drones: any[] = [];
+  @Input() drones: FleetDrone[] = [];
 
   // --- Raw text stats ---
   totalActive = 0;

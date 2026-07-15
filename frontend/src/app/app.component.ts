@@ -6,6 +6,15 @@ import { TelemetryService } from './services/telemetry.service';
 import * as L from 'leaflet';
 import { AuthService } from './services/auth.service';
 import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-panel.component';
+import {
+  DRONE_CLASSES,
+  DroneCreateRequest,
+  DroneTelemetry,
+  emptyDroneRequest,
+  FleetDrone,
+  TelemetrySnapshot,
+  VISION_MODE_OPTIONS,
+} from './models/drone.model';
 
 @Component({
   selector: 'app-root',
@@ -23,11 +32,14 @@ export class AppComponent implements OnInit {
   isLoading = false;
 
   // Data State
-  dbDrones: any[] = [];
-  newDrone: any = { callSign: '', model: '' }; // Model simplificat pentru formular
+  dbDrones: FleetDrone[] = [];
+  newDrone: DroneCreateRequest = emptyDroneRequest();
+  readonly droneClasses = DRONE_CLASSES;
+  readonly visionModeOptions = VISION_MODE_OPTIONS;
+  expandedDroneId: string | null = null;
 
   // Ultima telemetrie live (Firebase), keyed by callSign — folosită pentru Black Box analytics
-  private liveTelemetry: any = {};
+  private liveTelemetry: TelemetrySnapshot = {};
 
   // Atmospheric Sensors (Open-Meteo -> backend /api/weather)
   weatherData: any = null;
@@ -193,7 +205,9 @@ export class AppComponent implements OnInit {
   private setupPaths(): void {
     this.telemetryService.dronePaths$.subscribe((msg: any) => {
       if (!msg?.callSign || !Array.isArray(msg.waypoints)) return;
-      const drone = this.dbDrones.find((d) => d.callSign === msg.callSign);
+      const drone = this.dbDrones.find(
+        (d) => this.normalizeCallSign(d.callSign) === this.normalizeCallSign(msg.callSign),
+      );
       if (!drone) return;
 
       const reinforcement = msg.reinforcement === true;
@@ -261,7 +275,7 @@ export class AppComponent implements OnInit {
   private currentPosition(droneId: string): { lat: number; lng: number } {
     if (this.lastPositions[droneId]) return this.lastPositions[droneId];
     const drone = this.dbDrones.find((d) => d.id === droneId);
-    const marker = drone ? this.markers[drone.callSign] : undefined;
+    const marker = drone ? this.markers[this.normalizeCallSign(drone.callSign)] : undefined;
     if (marker) {
       const p = marker.getLatLng();
       return { lat: p.lat, lng: p.lng };
@@ -311,9 +325,17 @@ export class AppComponent implements OnInit {
     });
   }
 
-  private updateMarkers(drones: any) {
-    Object.keys(drones).forEach((key) => {
-      const d = drones[key];
+  private updateMarkers(drones: TelemetrySnapshot) {
+    Object.entries(drones).forEach(([incomingKey, telemetry]) => {
+      if (typeof telemetry.lat !== 'number' || typeof telemetry.lng !== 'number') return;
+
+      const key = this.normalizeCallSign(incomingKey);
+      const staticDrone = this.dbDrones.find(
+        (drone) => this.normalizeCallSign(drone.callSign) === key,
+      );
+      const d: DroneTelemetry & Partial<FleetDrone> = staticDrone
+        ? { ...staticDrone, ...telemetry }
+        : telemetry;
       const isThreat = d.threat_level === 'THREAT';
       const isRtb = d.status === 'RTB';
       // RTB (ambru) are precedență — protocol autonom de aterizare de urgență.
@@ -348,20 +370,14 @@ export class AppComponent implements OnInit {
       // ----------------------------------
 
       // Construim conținutul popup-ului (cu tot cu imagine, dacă există)
-      const popupContent = `
-          <div style="text-align: center; min-width: 200px;">
-            <b style="color: ${color}; font-size: 1.2em; letter-spacing: 1px;">${key.toUpperCase()}</b><br>
-            Status: <b style="color: ${color}">${d.threat_level || 'ANALYZING...'}</b><br>
-            
-            ${imageHtml} <hr style="border-color: rgba(255,255,255,0.2); margin: 10px 0;">
-            <small style="color: #ccc; font-style: italic;">"${d.report || 'No report'}"</small>
-          </div>
-        `;
+      const popupContent = this.buildDronePopup(key, d, color, imageHtml);
+      const tooltipContent = `${this.escapeHtml(key)} · ${this.escapeHtml(staticDrone?.model || 'UNREGISTERED')} · ${this.formatModelClass(staticDrone?.modelClass)}`;
 
       if (this.markers[key]) {
         // CAZUL 1: Drona există - Update
-        this.markers[key].setLatLng([d.lat, d.lng]);
+        this.markers[key].setLatLng([telemetry.lat, telemetry.lng]);
         this.markers[key].setStyle({ color: color, fillColor: color });
+        this.markers[key].setTooltipContent(tooltipContent);
         // Doar actualizăm conținutul popup-ului dacă e deschis
         if (this.markers[key].isPopupOpen()) {
           this.markers[key].getPopup()?.setContent(popupContent);
@@ -371,7 +387,7 @@ export class AppComponent implements OnInit {
         }
       } else {
         // CAZUL 2: Drona nouă - Creare
-        const marker = L.circleMarker([d.lat, d.lng], {
+        const marker = L.circleMarker([telemetry.lat, telemetry.lng], {
           color: color,
           fillColor: color,
           fillOpacity: 0.7,
@@ -379,10 +395,66 @@ export class AppComponent implements OnInit {
           weight: 3,
         }).addTo(this.map);
 
-        marker.bindPopup(popupContent);
+        marker.bindTooltip(tooltipContent, { direction: 'top', offset: [0, -10] });
+        marker.bindPopup(popupContent, { maxWidth: 360 });
         this.markers[key] = marker;
       }
     });
+  }
+
+  private buildDronePopup(
+    callSign: string,
+    drone: DroneTelemetry & Partial<FleetDrone>,
+    color: string,
+    imageHtml: string,
+  ): string {
+    const modes = drone.visionModes?.length
+      ? drone.visionModes
+          .map((mode) => `<span class="dossier-chip">${this.escapeHtml(mode)}</span>`)
+          .join('')
+      : '<span class="dossier-chip dossier-chip-muted">Unspecified</span>';
+    const metric = (value: number | undefined, unit: string) =>
+      value == null ? '--' : `${this.formatNumber(value)} ${unit}`;
+
+    return `
+      <section class="drone-popup" style="--unit-accent: ${color}">
+        <header class="drone-popup-header">
+          <strong>${this.escapeHtml(callSign)}</strong>
+          <span>${this.escapeHtml(drone.model || 'UNREGISTERED')}</span>
+        </header>
+        <div class="drone-popup-status">STATUS // <b>${this.escapeHtml(drone.threat_level || drone.status || 'ANALYZING')}</b></div>
+        <div class="dossier-grid dossier-grid-popup">
+          <div><span>CLASS</span><b>${this.formatModelClass(drone.modelClass)}</b></div>
+          <div><span>TOP SPEED</span><b>${metric(drone.topSpeed, 'km/h')}</b></div>
+          <div><span>RADAR</span><b>${metric(drone.radarRange, 'm')}</b></div>
+          <div><span>PAYLOAD</span><b>${metric(drone.payloadCapacity, 'kg')}</b></div>
+          <div><span>BATTERY</span><b>${metric(drone.batteryCapacity, 'mAh')}</b></div>
+        </div>
+        <div class="dossier-modes"><span>VISION MODES</span><div>${modes}</div></div>
+        ${imageHtml}
+        <p class="drone-popup-report">“${this.escapeHtml(drone.report || 'No report')}”</p>
+      </section>`;
+  }
+
+  formatModelClass(modelClass: FleetDrone['modelClass'] | undefined): string {
+    return modelClass ? modelClass.replace('_', ' ') : 'UNSPECIFIED';
+  }
+
+  formatNumber(value: number): string {
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
+  }
+
+  escapeHtml(value: unknown): string {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  private normalizeCallSign(callSign: string): string {
+    return (callSign || '').trim().toUpperCase();
   }
 
   // --- FLEET MANAGEMENT LOGIC ---
@@ -391,6 +463,38 @@ export class AppComponent implements OnInit {
     if (this.showAdmin) {
       this.loadDrones();
     }
+    setTimeout(() => this.map?.invalidateSize(), 320);
+  }
+
+  toggleDossier(drone: FleetDrone): void {
+    this.expandedDroneId = this.expandedDroneId === drone.id ? null : drone.id;
+  }
+
+  isDossierExpanded(id: string): boolean {
+    return this.expandedDroneId === id;
+  }
+
+  trackDrone(_index: number, drone: FleetDrone): string {
+    return drone.id;
+  }
+
+  toggleVisionMode(mode: string): void {
+    const modes = this.newDrone.visionModes;
+    this.newDrone.visionModes = modes.includes(mode)
+      ? modes.filter((current) => current !== mode)
+      : [...modes, mode];
+  }
+
+  isDeployFormValid(): boolean {
+    return (
+      this.newDrone.callSign.trim().length > 0 &&
+      this.newDrone.model.trim().length > 0 &&
+      this.newDrone.batteryCapacity > 0 &&
+      this.newDrone.topSpeed > 0 &&
+      this.newDrone.radarRange > 0 &&
+      this.newDrone.payloadCapacity > 0 &&
+      this.newDrone.visionModes.length > 0
+    );
   }
 
   // --- SIMULATION LOGIC ---
@@ -413,8 +517,9 @@ export class AppComponent implements OnInit {
     let currentLng = 26.1025;
 
     // Dacă drona e deja pe hartă, plecăm de acolo (markerii sunt cheie după callSign)
-    if (this.markers[drone.callSign]) {
-      const pos = this.markers[drone.callSign].getLatLng();
+    const markerKey = this.normalizeCallSign(drone.callSign);
+    if (this.markers[markerKey]) {
+      const pos = this.markers[markerKey].getLatLng();
       currentLat = pos.lat;
       currentLng = pos.lng;
     }
@@ -497,6 +602,7 @@ export class AppComponent implements OnInit {
       next: (data) => {
         this.dbDrones = data;
         this.mergeTelemetryIntoFleet(); // aplicăm telemetria live curentă peste flota încărcată
+        this.updateMarkers(this.liveTelemetry); // refresh popup dossiers after SQL metadata arrives
         this.isLoading = false;
         this.cdr.markForCheck(); // zoneless: redesenăm lista + panoul Black Box
         console.log('✅ Drones loaded from SQL:', data);
@@ -511,14 +617,14 @@ export class AppComponent implements OnInit {
   }
 
   addDrone() {
-    if (!this.newDrone.callSign || !this.newDrone.model) return;
+    if (!this.isDeployFormValid()) return;
 
     this.isLoading = true;
-    const payload = {
-      callSign: this.newDrone.callSign,
-      model: this.newDrone.model,
-      batteryCapacity: 10000, // Default militar
-      status: 'OFFLINE',
+    const payload: DroneCreateRequest = {
+      ...this.newDrone,
+      callSign: this.normalizeCallSign(this.newDrone.callSign),
+      model: this.newDrone.model.trim(),
+      visionModes: [...this.newDrone.visionModes],
     };
 
     this.apiService.create(payload).subscribe({
@@ -526,7 +632,7 @@ export class AppComponent implements OnInit {
         // Referință nouă ca panoul Black Box (ngOnChanges) să se actualizeze
         this.dbDrones = [...this.dbDrones, resp];
 
-        this.newDrone = { callSign: '', model: '' };
+        this.newDrone = emptyDroneRequest();
         this.isLoading = false;
         this.cdr.markForCheck();
 
