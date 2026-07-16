@@ -1,13 +1,16 @@
 package com.defense.sentinel.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.defense.sentinel.VoiceCommandIntent;
 import com.defense.sentinel.client.GroqClient;
 import com.defense.sentinel.client.GroqRequest;
 import com.defense.sentinel.client.GroqResponse;
 import com.defense.sentinel.client.OllamaClient;
 import com.defense.sentinel.client.OllamaRequest;
 import com.defense.sentinel.client.OllamaResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -66,6 +69,7 @@ class IntelligenceServiceTest {
     service.model = "gemma4:12b";
     service.groqApiKey = Optional.of("test-key");
     service.groqModel = "llama-3.1-8b-instant";
+    service.objectMapper = new ObjectMapper();
     return service;
   }
 
@@ -113,5 +117,86 @@ class IntelligenceServiceTest {
     IntelligenceService service = newService(ollama, groq, "groq");
 
     assertEquals("UNKNOWN", service.analyzeReport("Armed convoy"));
+  }
+
+  @Test
+  void parsesFencedMoveJsonFromOllamaAndNormalizesCallSign() {
+    FakeOllamaClient ollama = new FakeOllamaClient();
+    ollama.next =
+        """
+        ```json
+        {"action":"MOVE","callSign":"razor-12","latitude":44.4268,"longitude":26.1042}
+        ```
+        """;
+    IntelligenceService service = newService(ollama, new FakeGroqClient(), "ollama");
+
+    VoiceCommandIntent command =
+        service.parseVoiceCommand("Send Razor-12 to central Bucharest", List.of("RAZOR-12"));
+
+    assertEquals("MOVE", command.action);
+    assertEquals("RAZOR-12", command.callSign);
+    assertEquals(44.4268, command.latitude);
+    assertEquals(26.1042, command.longitude);
+  }
+
+  @Test
+  void parsesMoveJsonThroughGroq() {
+    FakeGroqClient groq = new FakeGroqClient();
+    groq.next =
+        "{\"action\":\"MOVE\",\"callSign\":\"FALCON-1\","
+            + "\"latitude\":44.5,\"longitude\":26.2}";
+    IntelligenceService service = newService(new FakeOllamaClient(), groq, "groq");
+
+    VoiceCommandIntent command =
+        service.parseVoiceCommand("Move Falcon-1 north", List.of("FALCON-1"));
+
+    assertEquals("FALCON-1", command.callSign);
+    assertEquals("Bearer test-key", groq.seenAuthorization);
+  }
+
+  @Test
+  void rejectsMalformedUnsupportedUnknownAndInvalidCoordinateCommands() {
+    FakeOllamaClient ollama = new FakeOllamaClient();
+    IntelligenceService service = newService(ollama, new FakeGroqClient(), "ollama");
+
+    ollama.next = "not-json";
+    assertInvalid(() -> service.parseVoiceCommand("move it", List.of("RAZOR-12")));
+
+    ollama.next =
+        "{\"action\":\"RTB\",\"callSign\":\"RAZOR-12\",\"latitude\":44.4,\"longitude\":26.1}";
+    assertInvalid(() -> service.parseVoiceCommand("return home", List.of("RAZOR-12")));
+
+    ollama.next =
+        "{\"action\":\"MOVE\",\"callSign\":\"GHOST-99\",\"latitude\":44.4,\"longitude\":26.1}";
+    assertInvalid(() -> service.parseVoiceCommand("move ghost", List.of("RAZOR-12")));
+
+    ollama.next =
+        "{\"action\":\"MOVE\",\"callSign\":\"RAZOR-12\",\"latitude\":100,\"longitude\":26.1}";
+    assertInvalid(() -> service.parseVoiceCommand("move razor", List.of("RAZOR-12")));
+
+    ollama.next =
+        "{\"action\":\"MOVE\",\"callSign\":\"RAZOR-12\",\"latitude\":44.4,"
+            + "\"longitude\":26.1,\"extra\":true}";
+    assertInvalid(() -> service.parseVoiceCommand("move razor", List.of("RAZOR-12")));
+  }
+
+  @Test
+  void reportsVoiceUplinkFailuresSeparately() {
+    FakeOllamaClient ollama = new FakeOllamaClient();
+    ollama.fail = true;
+    IntelligenceService service = newService(ollama, new FakeGroqClient(), "ollama");
+
+    VoiceCommandParsingException error =
+        assertThrows(
+            VoiceCommandParsingException.class,
+            () -> service.parseVoiceCommand("Move Razor-12", List.of("RAZOR-12")));
+
+    assertEquals(VoiceCommandParsingException.Kind.UPLINK_FAILURE, error.kind());
+  }
+
+  private static void assertInvalid(Runnable invocation) {
+    VoiceCommandParsingException error =
+        assertThrows(VoiceCommandParsingException.class, invocation::run);
+    assertEquals(VoiceCommandParsingException.Kind.INVALID_COMMAND, error.kind());
   }
 }

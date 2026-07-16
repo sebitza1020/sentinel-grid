@@ -54,9 +54,44 @@ const telemetry = Object.fromEntries(
   ]),
 );
 
-async function mockDashboard(page: Page, authenticated = false): Promise<void> {
+async function mockDashboard(
+  page: Page,
+  authenticated = false,
+  voiceRequests: string[] = [],
+): Promise<void> {
   await page.addInitScript(() => {
     (window as any).__SENTINEL_MAP_TEST_MODE__ = true;
+    class FakeSpeechRecognition {
+      continuous = false;
+      interimResults = false;
+      lang = '';
+      maxAlternatives = 1;
+      onresult: ((event: any) => void) | null = null;
+      onerror: ((event: any) => void) | null = null;
+      onend: (() => void) | null = null;
+
+      start(): void {
+        queueMicrotask(() =>
+          this.onresult?.({
+            resultIndex: 0,
+            results: [
+              {
+                0: { transcript: 'Send Razor-12 to the center of Bucharest', confidence: 1 },
+                isFinal: true,
+                length: 1,
+              },
+            ],
+          }),
+        );
+      }
+
+      stop(): void {
+        this.onend?.();
+      }
+
+      abort(): void {}
+    }
+    (window as any).SpeechRecognition = FakeSpeechRecognition;
   });
   if (authenticated) {
     await page.addInitScript(() => localStorage.setItem('sentinel_token', 'e2e-token'));
@@ -70,6 +105,18 @@ async function mockDashboard(page: Page, authenticated = false): Promise<void> {
     }),
   );
   await page.route('**/api/geofences', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/fleet/command-voice', async (route) => {
+    voiceRequests.push(route.request().postData() ?? '');
+    await route.fulfill({
+      json: {
+        action: 'MOVE',
+        callSign: 'RAZOR-12',
+        latitude: 44.4268,
+        longitude: 26.1042,
+        waypoints: [[44.4268, 26.1042, 162]],
+      },
+    });
+  });
   await page.routeWebSocket('**/ws/telemetry', (socket) => socket.send(JSON.stringify(telemetry)));
 }
 
@@ -81,6 +128,7 @@ test('renders the Sentinel Grid dashboard and tactical map', async ({ page }) =>
   await expect(page.locator('#map')).toBeVisible();
   await expect(page.locator('#map')).toHaveClass(/mapboxgl-map/);
   await expect(page.locator('.sentinel-drone-marker')).toHaveCount(21);
+  await expect(page.locator('#voice-trigger-btn')).toHaveCount(0);
 });
 
 test('renders 21 expandable fleet dossiers and a matching map popup', async ({ page }) => {
@@ -121,4 +169,18 @@ test('keeps the 21-unit dossier panel usable on a mobile viewport', async ({ pag
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   );
   expect(hasHorizontalOverflow).toBe(false);
+});
+
+test('submits an authenticated native speech transcript to fleet control', async ({ page }) => {
+  const voiceRequests: string[] = [];
+  await mockDashboard(page, true, voiceRequests);
+  await page.goto('/');
+
+  const microphone = page.locator('#voice-trigger-btn');
+  await expect(microphone).toBeVisible();
+  await microphone.click();
+
+  await expect.poll(() => voiceRequests).toEqual(['Send Razor-12 to the center of Bucharest']);
+  await expect(page.locator('.voice-status')).toContainText('RAZOR-12 // MOVE ORDER ACCEPTED');
+  await expect(page.locator('.voice-transcript')).toContainText('Send Razor-12');
 });

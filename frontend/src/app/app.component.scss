@@ -397,9 +397,15 @@ app-tactical-map {
     font-size: 0.8em;
   }
 
-  .btn-hud-toggle {
+  .hud-actions {
+    display: flex;
+    align-items: stretch;
+    gap: 9px;
     margin-top: 15px;
-    width: 100%;
+  }
+
+  .btn-hud-toggle {
+    flex: 1;
     padding: 8px;
     background: transparent;
     border: 1px solid $border-color;
