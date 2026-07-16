@@ -76,4 +76,20 @@ describe('DroneApi', () => {
     });
     routeRequest.flush([[44.5, 26.2, 200]]);
   });
+
+  it('submits the raw voice transcript as text/plain', () => {
+    service.commandVoice('Send Razor-12 to Bucharest').subscribe();
+
+    const request = http.expectOne('http://localhost:8080/api/fleet/command-voice');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toBe('Send Razor-12 to Bucharest');
+    expect(request.request.headers.get('Content-Type')).toBe('text/plain');
+    request.flush({
+      action: 'MOVE',
+      callSign: 'RAZOR-12',
+      latitude: 44.4268,
+      longitude: 26.1042,
+      waypoints: [[44.4268, 26.1042, 150]],
+    });
+  });
 });

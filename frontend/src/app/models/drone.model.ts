@@ -54,6 +54,14 @@ export interface TacticalRoute {
   rtb: boolean;
 }
 
+export interface VoiceCommandResponse {
+  action: 'MOVE';
+  callSign: string;
+  latitude: number;
+  longitude: number;
+  waypoints: Position3D[];
+}
+
 export interface DroneCreateRequest {
   callSign: string;
   model: string;

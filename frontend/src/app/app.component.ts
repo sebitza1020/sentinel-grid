@@ -18,9 +18,14 @@ import {
 } from './models/drone.model';
 import { AuthService } from './services/auth.service';
 import { DroneApiService } from './services/drone-api.service';
+import {
+  SpeechRecognitionFailure,
+  SpeechRecognitionService,
+} from './services/speech-recognition.service';
 import { TelemetryService } from './services/telemetry.service';
 
 const DEFAULT_POSITION: Position3D = [44.4268, 26.1025, 0];
+type VoiceState = 'ready' | 'listening' | 'processing' | 'success' | 'error' | 'unsupported';
 
 @Component({
   selector: 'app-root',
@@ -49,6 +54,9 @@ export class AppComponent implements OnInit, OnDestroy {
   weatherData: any = null;
   simulationIntervals: Record<string, ReturnType<typeof setInterval>> = {};
   loginData = { username: '', password: '' };
+  voiceState: VoiceState = 'ready';
+  voiceTranscript = '';
+  voiceStatusMessage = 'VOICE LINK READY';
 
   selectedDroneId: string | null = null;
   flightPlans: Record<string, Position3D[]> = {};
@@ -62,11 +70,16 @@ export class AppComponent implements OnInit, OnDestroy {
   constructor(
     private readonly telemetryService: TelemetryService,
     private readonly apiService: DroneApiService,
+    private readonly speechRecognition: SpeechRecognitionService,
     public readonly authService: AuthService,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
+    if (!this.speechRecognition.supported) {
+      this.voiceState = 'unsupported';
+      this.voiceStatusMessage = 'VOICE LINK UNSUPPORTED';
+    }
     this.setupTelemetry();
     this.setupPaths();
     this.loadDrones();
@@ -75,6 +88,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.speechRecognition.abortListening();
     this.subscriptions.unsubscribe();
     if (this.weatherTimer) clearInterval(this.weatherTimer);
     for (const timer of Object.values(this.simulationIntervals)) {
@@ -93,8 +107,38 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   doLogout(): void {
+    this.speechRecognition.abortListening();
     this.authService.logout();
     this.dbDrones = [];
+    this.resetVoiceStatus();
+  }
+
+  toggleVoiceCommand(): void {
+    if (this.voiceState === 'listening') {
+      this.speechRecognition.stopListening();
+      return;
+    }
+    if (this.voiceState === 'processing' || !this.speechRecognition.supported) {
+      return;
+    }
+
+    this.voiceTranscript = '';
+    this.voiceState = 'listening';
+    this.voiceStatusMessage = 'LISTENING // SPEAK COMMAND';
+    this.cdr.markForCheck();
+
+    this.subscriptions.add(
+      this.speechRecognition.startListening().subscribe({
+        next: (transcript) => this.submitVoiceCommand(transcript),
+        error: (error) => this.handleSpeechError(error),
+      }),
+    );
+  }
+
+  voiceButtonLabel(): string {
+    if (this.voiceState === 'listening') return 'Stop listening for a fleet command';
+    if (this.voiceState === 'processing') return 'Voice command is being processed';
+    return 'Start listening for a fleet command';
   }
 
   onWaypointSelected(position: Position3D): void {
@@ -457,5 +501,47 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private normalizeCallSign(callSign: string): string {
     return (callSign || '').trim().toUpperCase();
+  }
+
+  private submitVoiceCommand(transcript: string): void {
+    this.voiceTranscript = transcript;
+    this.voiceState = 'processing';
+    this.voiceStatusMessage = 'AI INTENT PARSER // PROCESSING';
+    this.cdr.markForCheck();
+
+    this.subscriptions.add(
+      this.apiService.commandVoice(transcript).subscribe({
+        next: (command) => {
+          this.voiceState = 'success';
+          this.voiceStatusMessage = `${command.callSign} // MOVE ORDER ACCEPTED`;
+          this.cdr.markForCheck();
+        },
+        error: (error) => {
+          this.voiceState = 'error';
+          this.voiceStatusMessage =
+            error?.error?.message || 'VOICE COMMAND REJECTED BY FLEET CONTROL';
+          this.cdr.markForCheck();
+        },
+      }),
+    );
+  }
+
+  private handleSpeechError(error: unknown): void {
+    this.voiceState =
+      error instanceof SpeechRecognitionFailure && error.code === 'unsupported'
+        ? 'unsupported'
+        : 'error';
+    this.voiceStatusMessage =
+      error instanceof SpeechRecognitionFailure ? error.message : 'VOICE CAPTURE FAILED';
+    this.cdr.markForCheck();
+  }
+
+  private resetVoiceStatus(): void {
+    this.voiceTranscript = '';
+    this.voiceState = this.speechRecognition.supported ? 'ready' : 'unsupported';
+    this.voiceStatusMessage = this.speechRecognition.supported
+      ? 'VOICE LINK READY'
+      : 'VOICE LINK UNSUPPORTED';
+    this.cdr.markForCheck();
   }
 }

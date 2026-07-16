@@ -1,7 +1,13 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Drone, DroneCreateRequest, GeofenceVolume, Position3D } from '../models/drone.model';
+import {
+  Drone,
+  DroneCreateRequest,
+  GeofenceVolume,
+  Position3D,
+  VoiceCommandResponse,
+} from '../models/drone.model';
 
 @Injectable({ providedIn: 'root' })
 export class DroneApiService {
@@ -34,6 +40,14 @@ export class DroneApiService {
       start,
       end,
     });
+  }
+
+  commandVoice(transcript: string): Observable<VoiceCommandResponse> {
+    return this.http.post<VoiceCommandResponse>(
+      `${this.base}/api/fleet/command-voice`,
+      transcript,
+      { headers: new HttpHeaders({ 'Content-Type': 'text/plain' }) },
+    );
   }
 
   /** Descarcă debrief-ul tactic oficial (PDF) generat de backend, ca blob binar. */
