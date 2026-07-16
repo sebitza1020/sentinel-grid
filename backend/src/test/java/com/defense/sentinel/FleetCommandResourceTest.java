@@ -13,13 +13,9 @@ import com.defense.sentinel.service.VoiceFleetCommandService;
 import com.defense.sentinel.websocket.TelemetrySocket;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.smallrye.jwt.build.Jwt;
-import io.smallrye.jwt.util.KeyUtils;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import io.quarkus.test.security.TestSecurity;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
@@ -32,6 +28,7 @@ class FleetCommandResourceTest {
   @InjectMock TelemetrySocket telemetrySocket;
 
   @Test
+  @TestSecurity(user = "commander", roles = "COMMANDER")
   void acceptsRawTextAndReturnsExecutedCommand() {
     VoiceCommandIntent intent = new VoiceCommandIntent("MOVE", "RAZOR-12", 44.4268, 26.1042);
     when(telemetrySocket.currentStates())
@@ -47,8 +44,6 @@ class FleetCommandResourceTest {
                 List.of(new double[] {44.4268, 26.1042, 100})));
 
     given()
-        .auth()
-        .oauth2(commanderToken())
         .contentType("text/plain")
         .body("Send Razor-12 to the center of Bucharest")
         .when()
@@ -61,10 +56,9 @@ class FleetCommandResourceTest {
   }
 
   @Test
+  @TestSecurity(user = "commander", roles = "COMMANDER")
   void mapsInvalidTranscriptAndAiFailuresToStructuredErrors() {
     given()
-        .auth()
-        .oauth2(token("commander", "COMMANDER"))
         .contentType("text/plain")
         .body(" ")
         .when()
@@ -79,8 +73,6 @@ class FleetCommandResourceTest {
             new VoiceCommandParsingException(
                 VoiceCommandParsingException.Kind.INVALID_COMMAND, "invalid"));
     given()
-        .auth()
-        .oauth2(token("commander", "COMMANDER"))
         .contentType("text/plain")
         .body("do something")
         .when()
@@ -95,8 +87,6 @@ class FleetCommandResourceTest {
         .when(intelligenceService)
         .parseVoiceCommand(anyString(), any());
     given()
-        .auth()
-        .oauth2(token("commander", "COMMANDER"))
         .contentType("text/plain")
         .body("move razor")
         .when()
@@ -107,44 +97,14 @@ class FleetCommandResourceTest {
   }
 
   @Test
+  @TestSecurity(user = "operator", roles = "USER")
   void rejectsNonCommanderUsers() {
     given()
-        .auth()
-        .oauth2(token("operator", "USER"))
         .contentType("text/plain")
         .body("Move Razor-12")
         .when()
         .post("/api/fleet/command-voice")
         .then()
         .statusCode(403);
-  }
-
-  private static String token(String user, String role) {
-    try (InputStream keyStream =
-        FleetCommandResourceTest.class.getResourceAsStream("/privateKey.pem")) {
-      if (keyStream == null) {
-        throw new IllegalStateException("Test signing key is unavailable.");
-      }
-      String key = new String(keyStream.readAllBytes(), StandardCharsets.UTF_8);
-      return Jwt.issuer("https://sentinel-grid.com")
-          .upn(user)
-          .groups(Set.of(role))
-          .expiresIn(300)
-          .sign(KeyUtils.decodePrivateKey(key));
-    } catch (Exception e) {
-      throw new IllegalStateException("Could not create a test JWT.", e);
-    }
-  }
-
-  private static String commanderToken() {
-    return given()
-        .contentType("application/json")
-        .body(Map.of("username", "commander", "password", "sentinel2025"))
-        .when()
-        .post("/api/auth/login")
-        .then()
-        .statusCode(200)
-        .extract()
-        .path("token");
   }
 }
