@@ -1,13 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { AppComponent } from './app.component';
 import { TelemetryService } from './services/telemetry.service';
 
 // Stub TelemetryService so instantiating AppComponent does NOT open a real telemetry
 // WebSocket (the real service connects in its constructor).
-const telemetryStub = { dronePositions$: new BehaviorSubject<Record<string, unknown>>({}) };
+const telemetryStub = {
+  dronePositions$: new BehaviorSubject<Record<string, unknown>>({}),
+  dronePaths$: new Subject(),
+};
 
 describe('App', () => {
   beforeEach(async () => {
@@ -28,7 +31,7 @@ describe('App', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('formats dossier values and escapes Leaflet popup content', () => {
+  it('formats dossier values and escapes popup content', () => {
     const component = TestBed.createComponent(AppComponent).componentInstance;
 
     expect(component.formatModelClass('HEAVY_SUPPORT')).toBe('HEAVY SUPPORT');

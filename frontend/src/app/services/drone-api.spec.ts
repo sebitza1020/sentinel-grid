@@ -47,4 +47,33 @@ describe('DroneApi', () => {
       createdAt: '2026-07-15T12:00:00',
     });
   });
+
+  it('synchronizes volumetric geofences and requests 3D routes', () => {
+    const zones = [
+      {
+        id: 'nfz-1',
+        polygon: [
+          [44.4, 26.0],
+          [44.4, 26.2],
+          [44.5, 26.2],
+        ],
+        minAltitude: 100,
+        maxAltitude: 500,
+      },
+    ];
+    service.syncGeofences(zones).subscribe();
+    const geofenceRequest = http.expectOne('http://localhost:8080/api/geofences');
+    expect(geofenceRequest.request.method).toBe('POST');
+    expect(geofenceRequest.request.body).toEqual(zones);
+    geofenceRequest.flush(zones);
+
+    service.requestRoute('SPECTRE-01', [44.4, 26.1, 150], [44.5, 26.2, 200]).subscribe();
+    const routeRequest = http.expectOne('http://localhost:8080/api/navigation/route');
+    expect(routeRequest.request.body).toEqual({
+      callSign: 'SPECTRE-01',
+      start: [44.4, 26.1, 150],
+      end: [44.5, 26.2, 200],
+    });
+    routeRequest.flush([[44.5, 26.2, 200]]);
+  });
 });

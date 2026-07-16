@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.defense.sentinel.WeatherDTO;
 import com.defense.sentinel.websocket.TelemetrySocket;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +23,8 @@ import org.junit.jupiter.api.Test;
  */
 class RtbServiceTest {
 
-  private RtbService newService(TelemetrySocket socket, double windKmh) {
+  private RtbService newService(
+      TelemetrySocket socket, NavigationService navigationService, double windKmh) {
     WeatherDTO weather = new WeatherDTO();
     weather.current = new WeatherDTO.Current();
     weather.current.wind_speed_10m = windKmh;
@@ -32,6 +34,7 @@ class RtbServiceTest {
     RtbService service = new RtbService();
     service.telemetrySocket = socket;
     service.weatherService = weatherService;
+    service.navigationService = navigationService;
     return service;
   }
 
@@ -47,7 +50,7 @@ class RtbServiceTest {
   @Test
   void firstSightSeedsFullBatteryAndNoRtb() {
     TelemetrySocket socket = mock(TelemetrySocket.class);
-    RtbService service = newService(socket, 5);
+    RtbService service = newService(socket, mock(NavigationService.class), 5);
 
     Map<String, Object> update = tick(44.43, 26.10);
     service.apply("FALCON-1", 44.43, 26.10, update);
@@ -60,7 +63,10 @@ class RtbServiceTest {
   @Test
   void engagesRtbToClosestBaseWhenBatteryCritical() {
     TelemetrySocket socket = mock(TelemetrySocket.class);
-    RtbService service = newService(socket, 5);
+    NavigationService navigation = mock(NavigationService.class);
+    when(navigation.route(any(), any()))
+        .thenReturn(List.of(new double[] {44.5500, 26.0700, 0}));
+    RtbService service = newService(socket, navigation, 5);
 
     // Seed a drone one tick ago at 16% near the northern outskirts (closest to Base Beta).
     service.flightStates.put(
@@ -80,7 +86,7 @@ class RtbServiceTest {
   @Test
   void healthyDroneKeepsFlyingWithoutRtb() {
     TelemetrySocket socket = mock(TelemetrySocket.class);
-    RtbService service = newService(socket, 5);
+    RtbService service = newService(socket, mock(NavigationService.class), 5);
     service.flightStates.put(
         "REAPER-7",
         new RtbService.FlightState(80.0, 44.43, 26.10, System.currentTimeMillis() - 15_000, "ACTIVE"));
@@ -106,5 +112,41 @@ class RtbServiceTest {
     assertTrue(fast > still, "speed increases drain");
 
     assertEquals(0.0, RtbService.haversine(44.4, 26.1, 44.4, 26.1), 1e-6);
+  }
+
+  @Test
+  void triesTheNextBaseAndHoldsWhenNoSafeRtbRouteExists() {
+    TelemetrySocket socket = mock(TelemetrySocket.class);
+    NavigationService fallbackNavigation = mock(NavigationService.class);
+    when(fallbackNavigation.route(any(), any()))
+        .thenThrow(new RouteBlockedException("blocked"))
+        .thenReturn(List.of(new double[] {44.5500, 26.0700, 0}));
+    RtbService fallbackService = newService(socket, fallbackNavigation, 0);
+    fallbackService.flightStates.put(
+        "FALLBACK",
+        new RtbService.FlightState(
+            16.0, 44.43, 26.10, System.currentTimeMillis() - 15_000, "ACTIVE"));
+
+    Map<String, Object> fallbackUpdate = tick(44.431, 26.101);
+    fallbackService.apply("FALLBACK", 44.431, 26.101, fallbackUpdate);
+
+    assertEquals("RTB", fallbackUpdate.get("status"));
+    verify(socket).broadcastPath(eq("FALLBACK"), any(), eq(false), eq(true));
+
+    TelemetrySocket blockedSocket = mock(TelemetrySocket.class);
+    NavigationService blockedNavigation = mock(NavigationService.class);
+    when(blockedNavigation.route(any(), any()))
+        .thenThrow(new RouteBlockedException("blocked"));
+    RtbService blockedService = newService(blockedSocket, blockedNavigation, 0);
+    blockedService.flightStates.put(
+        "BLOCKED",
+        new RtbService.FlightState(
+            16.0, 44.43, 26.10, System.currentTimeMillis() - 15_000, "ACTIVE"));
+
+    Map<String, Object> blockedUpdate = tick(44.431, 26.101);
+    blockedService.apply("BLOCKED", 44.431, 26.101, blockedUpdate);
+
+    assertNull(blockedUpdate.get("status"));
+    verify(blockedSocket, never()).broadcastPath(eq("BLOCKED"), any(), eq(false), eq(true));
   }
 }

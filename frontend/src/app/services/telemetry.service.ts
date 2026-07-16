@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { retry } from 'rxjs/operators';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
-import { TelemetrySnapshot } from '../models/drone.model';
+import { PathMessage, TelemetrySnapshot } from '../models/drone.model';
 
 @Injectable({
   providedIn: 'root',
@@ -13,7 +13,7 @@ export class TelemetryService {
   public dronePositions$ = new BehaviorSubject<TelemetrySnapshot>({});
 
   // Rute de evaziune calculate de backend (mesaje discriminate cu type: "path").
-  public dronePaths$ = new Subject<any>();
+  public dronePaths$ = new Subject<PathMessage>();
 
   private socket$: WebSocketSubject<any>;
 
@@ -28,7 +28,7 @@ export class TelemetryService {
         // Discriminăm mesajele: rutele au type "path"; snapshot-ul de telemetrie e un
         // map brut keyed by callSign (fără câmp "type") — contractul Reactive Radar rămâne intact.
         if (data.type === 'path') {
-          this.dronePaths$.next(data);
+          this.dronePaths$.next(data as PathMessage);
         } else {
           this.dronePositions$.next(data);
         }

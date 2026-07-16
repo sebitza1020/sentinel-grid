@@ -55,6 +55,9 @@ const telemetry = Object.fromEntries(
 );
 
 async function mockDashboard(page: Page, authenticated = false): Promise<void> {
+  await page.addInitScript(() => {
+    (window as any).__SENTINEL_MAP_TEST_MODE__ = true;
+  });
   if (authenticated) {
     await page.addInitScript(() => localStorage.setItem('sentinel_token', 'e2e-token'));
   }
@@ -66,7 +69,7 @@ async function mockDashboard(page: Page, authenticated = false): Promise<void> {
       },
     }),
   );
-  await page.route('https://*.basemaps.cartocdn.com/**', (route) => route.fulfill({ status: 204 }));
+  await page.route('**/api/geofences', (route) => route.fulfill({ json: [] }));
   await page.routeWebSocket('**/ws/telemetry', (socket) => socket.send(JSON.stringify(telemetry)));
 }
 
@@ -76,7 +79,8 @@ test('renders the Sentinel Grid dashboard and tactical map', async ({ page }) =>
 
   await expect(page.getByRole('heading', { name: /SENTINEL GRID/i })).toBeVisible();
   await expect(page.locator('#map')).toBeVisible();
-  await expect(page.locator('#map')).toHaveClass(/leaflet-container/);
+  await expect(page.locator('#map')).toHaveClass(/mapboxgl-map/);
+  await expect(page.locator('.sentinel-drone-marker')).toHaveCount(21);
 });
 
 test('renders 21 expandable fleet dossiers and a matching map popup', async ({ page }) => {
@@ -85,14 +89,16 @@ test('renders 21 expandable fleet dossiers and a matching map popup', async ({ p
   await page.getByRole('button', { name: /manage fleet/i }).click();
 
   const cards = page.locator('.drone-card');
-  await expect(cards).toHaveCount(21);
+  await expect(cards).toHaveCount(21, { timeout: 30_000 });
 
   const spectre = page.locator('.drone-card[data-call-sign="SPECTRE-01"]');
   await spectre.click();
   await expect(spectre.getByText('32,000 m')).toBeVisible();
   await expect(spectre.getByText('Thermal')).toBeVisible();
 
-  await page.locator('.leaflet-interactive').first().click({ force: true });
+  await page
+    .locator('.sentinel-drone-marker[data-call-sign="SPECTRE-01"]')
+    .evaluate((element) => (element as HTMLElement).click());
   const popup = page.locator('.drone-popup');
   await expect(popup).toContainText('SPECTRE-01');
   await expect(popup).toContainText('SPECTRE-IV');

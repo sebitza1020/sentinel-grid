@@ -10,6 +10,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
+import java.util.Map;
 
 /**
  * No-Fly Zone registry endpoint. The operator draws polygons on the tactical map and syncs the full
@@ -29,7 +30,13 @@ public class GeofenceResource {
 
   @POST
   public Response sync(List<Geofence> zones) {
-    geofenceService.replaceAll(zones);
-    return Response.ok(geofenceService.getZones()).build();
+    try {
+      geofenceService.replaceAll(zones);
+      return Response.ok(geofenceService.getZones()).build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST)
+          .entity(Map.of("code", "INVALID_GEOFENCE", "message", e.getMessage()))
+          .build();
+    }
   }
 }

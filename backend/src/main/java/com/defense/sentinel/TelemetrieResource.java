@@ -110,7 +110,7 @@ public class TelemetrieResource {
                 }).start();
 
                 // AI Fleet Commander: autonomously re-task the closest available unit to reinforce.
-                fleetCommanderService.reinforce(callSign, data.lat, data.lng);
+                fleetCommanderService.reinforce(callSign, data.lat, data.lng, data.alt);
             }
 
             System.out.println("⚠️ AI Verdict: " + threatLevel);

@@ -89,7 +89,8 @@ public class TelemetrySocket {
    * frontend can tell it apart from the bare drone-state snapshot (which has no {@code type} key),
    * leaving the Reactive Radar telemetry contract untouched. {@code waypoints} are {@code [lat, lng]}.
    * {@code reinforcement} flags an autonomous Fleet Commander order and {@code rtb} an Autonomous
-   * Return-To-Base override, so the UI renders each route distinctly.
+   * Return-To-Base override, so the UI renders each route distinctly. New waypoints are {@code [lat,
+   * lng, altitudeAgl]}; legacy two-value arrays remain serializable for compatibility.
    */
   public void broadcastPath(
       String callSign, List<double[]> waypoints, boolean reinforcement, boolean rtb) {

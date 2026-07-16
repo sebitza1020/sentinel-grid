@@ -3,6 +3,8 @@ package com.defense.sentinel.service;
 import com.defense.sentinel.websocket.TelemetrySocket;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,8 @@ public class FleetCommanderService {
   // Package-private so a plain-JUnit test can inject a mocked TelemetrySocket.
   @Inject TelemetrySocket telemetrySocket;
 
+  @Inject NavigationService navigationService;
+
   // Units below this battery percentage are not eligible to be re-tasked.
   static final int MIN_BATTERY = 25;
 
@@ -30,10 +34,17 @@ public class FleetCommanderService {
    * @param threatCallSign the drone that raised the THREAT (excluded from reinforcement candidates)
    */
   public void reinforce(String threatCallSign, double threatLat, double threatLng) {
-    Map<String, Map<String, Object>> pool = telemetrySocket.currentStates();
+    reinforce(threatCallSign, threatLat, threatLng, 0.0);
+  }
 
-    String best = null;
-    double bestDistance = Double.MAX_VALUE;
+  /**
+   * Re-task the closest available drone whose three-dimensional path to the threat can be planned
+   * safely.
+   */
+  public void reinforce(
+      String threatCallSign, double threatLat, double threatLng, double threatAltitude) {
+    Map<String, Map<String, Object>> pool = telemetrySocket.currentStates();
+    List<Candidate> candidates = new ArrayList<>();
 
     for (Map.Entry<String, Map<String, Object>> entry : pool.entrySet()) {
       String callSign = entry.getKey();
@@ -56,30 +67,56 @@ public class FleetCommanderService {
       }
 
       double distance = haversine(threatLat, threatLng, lat, lng);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = callSign;
+      Double altitude = asDouble(state.get("alt"));
+      candidates.add(
+          new Candidate(
+              callSign, lat, lng, altitude == null ? 0.0 : Math.max(0.0, altitude), distance));
+    }
+
+    candidates.sort(Comparator.comparingDouble(Candidate::distance));
+    for (Candidate candidate : candidates) {
+      try {
+        List<double[]> route =
+            navigationService.route(
+                new double[] {candidate.lat(), candidate.lng(), candidate.altitude()},
+                new double[] {threatLat, threatLng, Math.max(0.0, threatAltitude)});
+        dispatch(candidate.callSign(), threatLat, threatLng, threatAltitude, route);
+        return;
+      } catch (RouteBlockedException e) {
+        System.out.println(
+            "[COMMANDER] Skipping "
+                + candidate.callSign()
+                + ": restricted airspace blocks reinforcement route.");
       }
     }
 
-    if (best == null) {
-      System.out.println("[COMMANDER] No available unit to reinforce " + threatCallSign + ".");
-      return;
-    }
+    System.out.println("[COMMANDER] No available unit can safely reinforce " + threatCallSign + ".");
+  }
 
+  private void dispatch(
+      String callSign,
+      double threatLat,
+      double threatLng,
+      double threatAltitude,
+      List<double[]> route) {
     System.out.println(
-        "[COMMANDER] Re-routing " + best + " to reinforce location due to THREAT level alert!");
+        "[COMMANDER] Re-routing "
+            + callSign
+            + " to reinforce location due to THREAT level alert!");
 
-    // Override the reinforcer's waypoint: fly it straight to the threat coordinates.
-    telemetrySocket.broadcastPath(best, List.of(new double[] {threatLat, threatLng}), true);
+    telemetrySocket.broadcastPath(callSign, route, true);
 
     // Publish + broadcast the reinforcer's new tactical state (the snapshot covers both drones).
     Map<String, Object> reinforcement = new HashMap<>();
     reinforcement.put("status", "REINFORCING");
     reinforcement.put("target_lat", threatLat);
     reinforcement.put("target_lng", threatLng);
-    telemetrySocket.updateAndBroadcast(best, reinforcement);
+    reinforcement.put("target_alt", Math.max(0.0, threatAltitude));
+    telemetrySocket.updateAndBroadcast(callSign, reinforcement);
   }
+
+  private record Candidate(
+      String callSign, double lat, double lng, double altitude, double distance) {}
 
   /** Great-circle distance in metres between two lat/lng points. */
   static double haversine(double lat1, double lng1, double lat2, double lng2) {

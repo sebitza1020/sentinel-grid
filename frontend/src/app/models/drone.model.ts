@@ -30,6 +30,30 @@ export type FleetDrone = Drone & DroneTelemetry;
 
 export type TelemetrySnapshot = Record<string, DroneTelemetry>;
 
+export type Position3D = [lat: number, lng: number, altitude: number];
+
+export interface GeofenceVolume {
+  id: string;
+  polygon: number[][];
+  minAltitude: number;
+  maxAltitude: number;
+}
+
+export interface PathMessage {
+  type: 'path';
+  callSign: string;
+  waypoints: Position3D[];
+  reinforcement: boolean;
+  rtb: boolean;
+}
+
+export interface TacticalRoute {
+  callSign: string;
+  waypoints: Position3D[];
+  reinforcement: boolean;
+  rtb: boolean;
+}
+
 export interface DroneCreateRequest {
   callSign: string;
   model: string;

@@ -27,7 +27,9 @@ class GeofenceResourceTest {
         .then()
         .statusCode(200)
         .body("$", hasSize(1))
-        .body("[0].id", is("nfz-1"));
+        .body("[0].id", is("nfz-1"))
+        .body("[0].minAltitude", is(0.0F))
+        .body("[0].maxAltitude", is(500.0F));
 
     given()
         .when()
@@ -35,5 +37,21 @@ class GeofenceResourceTest {
         .then()
         .statusCode(200)
         .body("[0].id", is("nfz-1"));
+  }
+
+  @Test
+  void rejectsMalformedAltitudeBands() {
+    String body =
+        "[{\"id\":\"bad\",\"polygon\":[[44.4,26.0],[44.4,26.2],[44.5,26.2]],"
+            + "\"minAltitude\":500,\"maxAltitude\":100}]";
+
+    given()
+        .contentType("application/json")
+        .body(body)
+        .when()
+        .post("/api/geofences")
+        .then()
+        .statusCode(400)
+        .body("code", is("INVALID_GEOFENCE"));
   }
 }

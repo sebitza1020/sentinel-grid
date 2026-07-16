@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Drone, DroneCreateRequest } from '../models/drone.model';
+import { Drone, DroneCreateRequest, GeofenceVolume, Position3D } from '../models/drone.model';
 
 @Injectable({ providedIn: 'root' })
 export class DroneApiService {
@@ -19,13 +19,17 @@ export class DroneApiService {
   }
 
   /** Sincronizează setul complet de No-Fly Zones (poligoane) la backend. */
-  syncGeofences(zones: { id: string; polygon: number[][] }[]): Observable<any> {
-    return this.http.post<any>(`${this.base}/api/geofences`, zones);
+  getGeofences(): Observable<GeofenceVolume[]> {
+    return this.http.get<GeofenceVolume[]>(`${this.base}/api/geofences`);
+  }
+
+  syncGeofences(zones: GeofenceVolume[]): Observable<GeofenceVolume[]> {
+    return this.http.post<GeofenceVolume[]>(`${this.base}/api/geofences`, zones);
   }
 
   /** Cere backend-ului o rută sigură (ocolind zonele) de la start la end (fiecare [lat,lng]). */
-  requestRoute(callSign: string, start: number[], end: number[]): Observable<number[][]> {
-    return this.http.post<number[][]>(`${this.base}/api/navigation/route`, {
+  requestRoute(callSign: string, start: Position3D, end: Position3D): Observable<Position3D[]> {
+    return this.http.post<Position3D[]>(`${this.base}/api/navigation/route`, {
       callSign,
       start,
       end,

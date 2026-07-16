@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import com.defense.sentinel.websocket.TelemetrySocket;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -33,10 +34,14 @@ class FleetCommanderServiceTest {
     return s;
   }
 
-  private FleetCommanderService withPool(Map<String, Map<String, Object>> pool, TelemetrySocket socket) {
+  private FleetCommanderService withPool(
+      Map<String, Map<String, Object>> pool,
+      TelemetrySocket socket,
+      NavigationService navigationService) {
     when(socket.currentStates()).thenReturn(pool);
     FleetCommanderService fc = new FleetCommanderService();
     fc.telemetrySocket = socket;
+    fc.navigationService = navigationService;
     return fc;
   }
 
@@ -52,9 +57,12 @@ class FleetCommanderServiceTest {
     pool.put("BUSY", unit(44.4269, 26.1026, 70, "THREAT"));
 
     TelemetrySocket socket = mock(TelemetrySocket.class);
-    FleetCommanderService fc = withPool(pool, socket);
+    NavigationService navigation = mock(NavigationService.class);
+    when(navigation.route(any(), any()))
+        .thenReturn(List.of(new double[] {44.4268, 26.1025, 180}));
+    FleetCommanderService fc = withPool(pool, socket, navigation);
 
-    fc.reinforce("ALPHA", 44.4268, 26.1025);
+    fc.reinforce("ALPHA", 44.4268, 26.1025, 180);
 
     // Only NEAR qualifies as the closest available unit and is ordered directly to the threat.
     verify(socket).broadcastPath(eq("NEAR"), any(), eq(true));
@@ -74,11 +82,32 @@ class FleetCommanderServiceTest {
     pool.put("BUSY", unit(44.4269, 26.1026, 70, "THREAT")); // already engaged
 
     TelemetrySocket socket = mock(TelemetrySocket.class);
-    FleetCommanderService fc = withPool(pool, socket);
+    FleetCommanderService fc =
+        withPool(pool, socket, mock(NavigationService.class));
 
     fc.reinforce("ALPHA", 44.4268, 26.1025);
 
     verify(socket, never()).broadcastPath(anyString(), any(), eq(true));
+  }
+
+  @Test
+  void skipsTheClosestCandidateWhenItsRouteIsBlocked() {
+    Map<String, Map<String, Object>> pool = new HashMap<>();
+    pool.put("ALPHA", unit(44.4268, 26.1025, 90, "THREAT"));
+    pool.put("NEAR", unit(44.4270, 26.1030, 80, "SAFE"));
+    pool.put("FAR", unit(44.5000, 26.2000, 80, "SAFE"));
+
+    TelemetrySocket socket = mock(TelemetrySocket.class);
+    NavigationService navigation = mock(NavigationService.class);
+    when(navigation.route(any(), any()))
+        .thenThrow(new RouteBlockedException("blocked"))
+        .thenReturn(List.of(new double[] {44.4268, 26.1025, 150}));
+    FleetCommanderService fc = withPool(pool, socket, navigation);
+
+    fc.reinforce("ALPHA", 44.4268, 26.1025, 150);
+
+    verify(socket).broadcastPath(eq("FAR"), any(), eq(true));
+    verify(socket, never()).broadcastPath(eq("NEAR"), any(), eq(true));
   }
 
   @Test

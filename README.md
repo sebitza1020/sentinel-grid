@@ -52,10 +52,10 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 
 1.  **Frontend (Angular 21 Standalone, Zoneless):**
     * Serves as the Command & Control (C2) interface.
-    * Visualizes telemetry on a **Leaflet.js** map with animated flight paths.
+    * Visualizes telemetry on a **Mapbox GL JS** 3D terrain map with altitude-aware markers and elevated flight paths.
     * Manages the fleet and simulation via REST API.
     * Streams live position, path, and status updates over a **native WebSocket** (`/ws/telemetry`).
-    * Lets operators sketch **No-Fly Zones** directly on the map with `leaflet-draw`.
+    * Lets operators sketch and edit volumetric **No-Fly Zones** with per-zone AGL limits.
 
 2.  **Backend (Java 21 / Quarkus):**
     * Exposes REST endpoints for Fleet Management (CRUD), Telemetry Ingestion, Navigation, Geofencing, and Analytics.
@@ -89,7 +89,7 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 
 * **Framework:** Angular 21 (Standalone Components, Zoneless change detection)
 * **Styling:** SCSS (Cyberpunk/Military aesthetic)
-* **Mapping:** Leaflet.js + CartoDB Dark Matter tiles + `leaflet-draw`
+* **Mapping:** Mapbox GL JS 3, Terrain DEM, 3D building extrusions, and Mapbox Draw
 * **Real-time:** RxJS `webSocket()` over `/ws/telemetry`
 * **Analytics:** Chart.js + ng2-charts (real-time fleet charts)
 
@@ -113,7 +113,7 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 
 ### Autonomous Tactics
 
-* **Geofencing & Pathfinding:** Operators sketch **No-Fly Zones** on the map; the backend `NavigationService` computes evasion routes that steer drones around restricted airspace.
+* **Volumetric Geofencing & Pathfinding:** Operators sketch extruded **No-Fly Zones** with minimum/maximum AGL limits; the backend `NavigationService` checks complete 3D flight segments and computes safe horizontal detours.
 * **AI Fleet Commander:** On a `THREAT` verdict, the closest available drone (chosen by Haversine distance, filtered by battery and threat state) is autonomously rerouted to reinforce the contact — rendered as a red, flowing reinforcement path.
 * **Autonomous Emergency RTB:** A backend energy-decay engine drains battery from base load, speed, and live wind. When a unit drops below the critical threshold it is autonomously routed to the nearest base station (`status = RTB`), rendered as an amber flashing landing route, then lands and recharges.
 
@@ -138,8 +138,8 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 | `GET  /api/drones` | List the fleet. |
 | `POST /api/drones/{callSign}/ping` | Ingest a drone telemetry tick (drives AI, RTB, and broadcast). |
 | `GET  /api/weather` | Cached Bucharest weather (Atmospheric Sensors). |
-| `POST /api/navigation/route` | Compute an evasion route around active No-Fly Zones. |
-| `GET / POST /api/geofences` | List and create No-Fly Zones. |
+| `POST /api/navigation/route` | Compute a 3D `[lat,lng,altitude]` evasion route around active restricted volumes. |
+| `GET / POST /api/geofences` | List and replace volumetric No-Fly Zones. |
 | `GET  /api/analytics/export` | Export the Mission Debrief PDF. |
 | `WS   /ws/telemetry` | Live position/path/status broadcast to dashboards. |
 
@@ -179,14 +179,22 @@ cd backend
 ```bash
 cd frontend
 npm install
+export MAPBOX_ACCESS_TOKEN=pk.your_url_restricted_public_token
 npm start
 ```
+
+On PowerShell, set the token with
+`$env:MAPBOX_ACCESS_TOKEN="pk.your_url_restricted_public_token"` before `npm start`.
+The token is written only to the ignored runtime configuration file and is not compiled into the
+Angular bundle.
 
 ### 3. Running with Docker
 
 ```bash
 docker build -f backend/Dockerfile -t sentinel-api backend
 docker run -i --rm -p 8080:8080 sentinel-api
+docker build -f frontend/Dockerfile -t sentinel-dashboard frontend
+docker run -i --rm -p 4200:80 -e MAPBOX_ACCESS_TOKEN=pk.your_token sentinel-dashboard
 ```
 
 ### 4. Quality Gates (run before pushing)
