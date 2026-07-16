@@ -6,6 +6,7 @@ import { TelemetryService } from './services/telemetry.service';
 import * as L from 'leaflet';
 import { AuthService } from './services/auth.service';
 import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-panel.component';
+import { LogoComponent } from './components/logo/logo.component';
 import {
   DRONE_CLASSES,
   DroneCreateRequest,
@@ -19,7 +20,7 @@ import {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, AnalyticsPanelComponent],
+  imports: [CommonModule, FormsModule, AnalyticsPanelComponent, LogoComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })

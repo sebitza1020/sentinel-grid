@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.defense.sentinel.WeatherDTO;
 import com.defense.sentinel.websocket.TelemetrySocket;
+import com.lowagie.text.pdf.PdfReader;
+import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,7 +46,7 @@ class MissionDebriefServiceTest {
   }
 
   @Test
-  void generatesRealPdfWithFleetWeatherAndLog() {
+  void generatesRealPdfWithFleetWeatherLogAndVectorBranding() throws Exception {
     Map<String, Map<String, Object>> pool = new HashMap<>();
     pool.put("Falcon-1", unit(44.43, 26.10, 180, 90, "SAFE"));
     pool.put("Ghost-2", unit(44.45, 26.12, 210, 40, "THREAT"));
@@ -64,6 +66,21 @@ class MissionDebriefServiceTest {
     String magic = new String(pdf, 0, 5, StandardCharsets.US_ASCII);
     assertEquals("%PDF-", magic, "output must be a real PDF document");
     assertTrue(pdf.length > 1500, "debrief should contain rendered content, got " + pdf.length + " bytes");
+
+    PdfReader reader = new PdfReader(pdf);
+    try {
+      assertEquals(1, reader.getNumberOfPages());
+      String pageText = new PdfTextExtractor(reader).getTextFromPage(1);
+      assertTrue(pageText.contains("SENTINEL GRID // OFFICIAL TACTICAL DEBRIEF"));
+
+      String pageContent = new String(reader.getPageContent(1), StandardCharsets.ISO_8859_1);
+      assertTrue(pageContent.contains("0.95294"), "content stream must include the cyan emblem color");
+      assertTrue(
+          pageContent.contains(" m\n") && pageContent.contains(" l\n"),
+          "content stream must include vector emblem paths");
+    } finally {
+      reader.close();
+    }
   }
 
   @Test

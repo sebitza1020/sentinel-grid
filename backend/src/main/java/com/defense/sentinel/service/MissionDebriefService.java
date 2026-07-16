@@ -7,6 +7,7 @@ import com.lowagie.text.Element;
 import com.lowagie.text.Font;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfContentByte;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
@@ -47,6 +48,10 @@ public class MissionDebriefService {
   private static final Color ACCENT = new Color(0, 120, 128);
   private static final Color HEADER_BG = new Color(16, 24, 32);
   private static final Color ROW_SHADE = new Color(236, 242, 244);
+  private static final Color EMBLEM_NAVY = new Color(7, 21, 33);
+  private static final Color EMBLEM_CYAN = new Color(0, 243, 255);
+  private static final Color EMBLEM_SWEEP = new Color(172, 249, 255);
+  private static final float EMBLEM_SCALE = 0.55f;
 
   @Inject TelemetrySocket telemetrySocket;
 
@@ -83,10 +88,10 @@ public class MissionDebriefService {
     try {
       ByteArrayOutputStream out = new ByteArrayOutputStream();
       Document document = new Document(PageSize.A4, 40, 40, 50, 40);
-      PdfWriter.getInstance(document, out);
+      PdfWriter writer = PdfWriter.getInstance(document, out);
       document.open();
 
-      addHeader(document);
+      addHeader(document, writer);
       addFleetSection(document);
       addWeatherSection(document);
       addThreatLogSection(document);
@@ -100,19 +105,153 @@ public class MissionDebriefService {
 
   // --- Sections ---
 
-  private void addHeader(Document document) {
+  private void addHeader(Document document, PdfWriter writer) {
+    drawEmblem(
+        writer.getDirectContent(),
+        document.left(),
+        document.top() - (64 * EMBLEM_SCALE),
+        EMBLEM_SCALE);
+
     Paragraph title =
         new Paragraph(
             "SENTINEL GRID // OFFICIAL TACTICAL DEBRIEF",
             new Font(Font.COURIER, 16, Font.BOLD, INK));
+    title.setIndentationLeft(62);
     title.setSpacingAfter(2);
     document.add(title);
 
     String generated = LocalDateTime.now().format(TS_FORMAT);
     Paragraph stamp =
         new Paragraph("GENERATED: " + generated + " LOCAL", new Font(Font.COURIER, 9, Font.NORMAL, ACCENT));
+    stamp.setIndentationLeft(62);
     stamp.setSpacingAfter(14);
     document.add(stamp);
+  }
+
+  /** Draws the same normalized 96x64 winged radar-shield used by the Angular logo. */
+  private void drawEmblem(PdfContentByte canvas, float originX, float originY, float scale) {
+    canvas.saveState();
+    canvas.setColorStroke(EMBLEM_CYAN);
+    canvas.setColorFill(EMBLEM_NAVY);
+    canvas.setLineWidth(0.8f);
+
+    drawPolygon(
+        canvas,
+        originX,
+        originY,
+        scale,
+        new float[][] {
+          {36, 15}, {23, 11}, {6, 19}, {21, 23}, {3, 31}, {28, 33}, {13, 43}, {38, 36}
+        });
+    drawPolygon(
+        canvas,
+        originX,
+        originY,
+        scale,
+        new float[][] {
+          {60, 15}, {73, 11}, {90, 19}, {75, 23}, {93, 31}, {68, 33}, {83, 43}, {58, 36}
+        });
+
+    // Shield shell.
+    canvas.moveTo(x(originX, scale, 48), y(originY, scale, 4));
+    canvas.lineTo(x(originX, scale, 64), y(originY, scale, 11));
+    canvas.lineTo(x(originX, scale, 61.5f), y(originY, scale, 38));
+    canvas.curveTo(
+        x(originX, scale, 60),
+        y(originY, scale, 48),
+        x(originX, scale, 54.5f),
+        y(originY, scale, 55),
+        x(originX, scale, 48),
+        y(originY, scale, 60));
+    canvas.curveTo(
+        x(originX, scale, 41.5f),
+        y(originY, scale, 55),
+        x(originX, scale, 36),
+        y(originY, scale, 48),
+        x(originX, scale, 34.5f),
+        y(originY, scale, 38));
+    canvas.lineTo(x(originX, scale, 32), y(originY, scale, 11));
+    canvas.closePathFillStroke();
+
+    // Shield inset and wing circuit traces.
+    canvas.setLineWidth(0.4f);
+    strokePolyline(
+        canvas,
+        originX,
+        originY,
+        scale,
+        new float[][] {{48, 10}, {58, 14.5f}, {56.2f, 36.3f}, {48, 51.5f}, {39.8f, 36.3f}, {38, 14.5f}, {48, 10}});
+    strokeLine(canvas, originX, originY, scale, 31, 21, 17, 19);
+    strokeLine(canvas, originX, originY, scale, 32, 28, 12, 28);
+    strokeLine(canvas, originX, originY, scale, 32, 34, 22, 39);
+    strokeLine(canvas, originX, originY, scale, 65, 21, 79, 19);
+    strokeLine(canvas, originX, originY, scale, 64, 28, 84, 28);
+    strokeLine(canvas, originX, originY, scale, 64, 34, 74, 39);
+
+    // Radar rings, reticle, and static sweep.
+    canvas.setLineWidth(0.65f);
+    canvas.circle(x(originX, scale, 48), y(originY, scale, 29), 12 * scale);
+    canvas.stroke();
+    canvas.setLineWidth(0.4f);
+    canvas.circle(x(originX, scale, 48), y(originY, scale, 29), 7 * scale);
+    canvas.stroke();
+    strokeLine(canvas, originX, originY, scale, 36, 29, 60, 29);
+    strokeLine(canvas, originX, originY, scale, 48, 17, 48, 41);
+    strokeLine(canvas, originX, originY, scale, 39.5f, 20.5f, 56.5f, 37.5f);
+    strokeLine(canvas, originX, originY, scale, 56.5f, 20.5f, 39.5f, 37.5f);
+
+    canvas.setColorFill(EMBLEM_SWEEP);
+    canvas.moveTo(x(originX, scale, 48), y(originY, scale, 29));
+    canvas.lineTo(x(originX, scale, 56.5f), y(originY, scale, 20.5f));
+    canvas.lineTo(x(originX, scale, 60), y(originY, scale, 29));
+    canvas.closePathFillStroke();
+    canvas.setColorFill(EMBLEM_CYAN);
+    canvas.circle(x(originX, scale, 48), y(originY, scale, 29), 2 * scale);
+    canvas.fill();
+
+    strokeLine(canvas, originX, originY, scale, 44, 57, 52, 57);
+    strokeLine(canvas, originX, originY, scale, 46, 61, 50, 61);
+    canvas.restoreState();
+  }
+
+  private static void drawPolygon(
+      PdfContentByte canvas, float originX, float originY, float scale, float[][] points) {
+    canvas.moveTo(x(originX, scale, points[0][0]), y(originY, scale, points[0][1]));
+    for (int i = 1; i < points.length; i++) {
+      canvas.lineTo(x(originX, scale, points[i][0]), y(originY, scale, points[i][1]));
+    }
+    canvas.closePathFillStroke();
+  }
+
+  private static void strokePolyline(
+      PdfContentByte canvas, float originX, float originY, float scale, float[][] points) {
+    canvas.moveTo(x(originX, scale, points[0][0]), y(originY, scale, points[0][1]));
+    for (int i = 1; i < points.length; i++) {
+      canvas.lineTo(x(originX, scale, points[i][0]), y(originY, scale, points[i][1]));
+    }
+    canvas.stroke();
+  }
+
+  private static void strokeLine(
+      PdfContentByte canvas,
+      float originX,
+      float originY,
+      float scale,
+      float x1,
+      float y1,
+      float x2,
+      float y2) {
+    canvas.moveTo(x(originX, scale, x1), y(originY, scale, y1));
+    canvas.lineTo(x(originX, scale, x2), y(originY, scale, y2));
+    canvas.stroke();
+  }
+
+  private static float x(float originX, float scale, float value) {
+    return originX + (value * scale);
+  }
+
+  private static float y(float originY, float scale, float value) {
+    return originY + ((64 - value) * scale);
   }
 
   private void addFleetSection(Document document) {

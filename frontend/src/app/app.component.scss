@@ -376,11 +376,19 @@ app-analytics-panel {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(5px);
 
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
   h1 {
     margin: 0;
     font-size: 1.5rem;
+    line-height: 1.1;
     color: $text-color;
     letter-spacing: 1px;
+    white-space: nowrap;
   }
 
   .blink {
@@ -572,6 +580,15 @@ app-analytics-panel {
     top: 10px;
     left: 10px;
     padding: 10px 14px;
+
+    .brand-lockup {
+      gap: 8px;
+    }
+
+    app-logo {
+      width: 44px;
+      height: 32px;
+    }
 
     h1 {
       font-size: 1rem;
