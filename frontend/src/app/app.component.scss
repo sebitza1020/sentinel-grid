@@ -358,11 +358,11 @@ app-analytics-panel {
   min-height: 0;
 }
 
-#map {
+app-tactical-map {
+  display: block;
   height: 100%;
   width: 100%;
   z-index: 1;
-  cursor: crosshair;
 }
 
 .hud-overlay {

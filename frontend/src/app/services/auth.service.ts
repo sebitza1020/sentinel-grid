@@ -6,7 +6,7 @@ import { BehaviorSubject, tap } from 'rxjs';
 export class AuthService {
   // URL-ul backend-ului tău
   private apiUrl = 'https://sentinel-api-kh1p.onrender.com/api/auth/login';
-  
+
   // Ținem minte token-ul în memorie și localStorage
   private tokenKey = 'sentinel_token';
   isLoggedIn$ = new BehaviorSubject<boolean>(!!localStorage.getItem(this.tokenKey));
@@ -14,12 +14,12 @@ export class AuthService {
   constructor(private http: HttpClient) {}
 
   login(username: string, password: string) {
-    return this.http.post<{token: string}>(this.apiUrl, { username, password }).pipe(
-      tap(response => {
+    return this.http.post<{ token: string }>(this.apiUrl, { username, password }).pipe(
+      tap((response) => {
         // Când primim token-ul, îl salvăm
         localStorage.setItem(this.tokenKey, response.token);
         this.isLoggedIn$.next(true);
-      })
+      }),
     );
   }
 

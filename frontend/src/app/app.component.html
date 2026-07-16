@@ -189,7 +189,12 @@
         <button (click)="toggleAdmin()" class="btn-hud-toggle">⚙️ MANAGE FLEET</button>
       </div>
 
-      <div id="map"></div>
+      <app-tactical-map
+        [drones]="dbDrones"
+        [selectedDroneId]="selectedDroneId"
+        [routes]="mapRoutes"
+        (waypointSelected)="onWaypointSelected($event)"
+      ></app-tactical-map>
 
       <!-- ATMOSPHERIC SENSORS HUD (permanent — shows "--" until/while data is unavailable) -->
       <div class="atmospheric-hud">

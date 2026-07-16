@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.websocket.RemoteEndpoint;
 import jakarta.websocket.Session;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -57,5 +58,20 @@ class TelemetrySocketTest {
     assertNotNull(snapshot);
     assertTrue(snapshot.contains("THREAT"), "threat_level should survive a movement-only update");
     assertTrue(snapshot.contains("44.5"), "latest position should be reflected");
+  }
+
+  @Test
+  void serializesThreeDimensionalPathMessages() {
+    RemoteEndpoint.Async async = mock(RemoteEndpoint.Async.class);
+    Session session = mock(Session.class);
+    when(session.isOpen()).thenReturn(true);
+    when(session.getAsyncRemote()).thenReturn(async);
+    TelemetrySocket socket = newSocket(session);
+
+    socket.broadcastPath(
+        "FALCON-1", List.of(new double[] {44.5, 26.1, 175.0}), true, false);
+
+    verify(async).sendText(contains("\"type\":\"path\""));
+    verify(async).sendText(contains("[44.5,26.1,175.0]"));
   }
 }

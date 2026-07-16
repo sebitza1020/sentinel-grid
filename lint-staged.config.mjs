@@ -1,30 +1,34 @@
 import path from 'node:path';
 
-// lint-staged passes absolute paths. Each workspace uses its own toolchain, so we
-// `cd` into the workspace and hand it paths relative to that workspace.
 const FRONTEND = 'frontend';
 const BACKEND = 'backend';
+const WINDOWS = process.platform === 'win32';
 
-const rel = (dir, files) => files.map((f) => `"${path.relative(dir, f)}"`).join(' ');
+const quote = (file) => `"${file.replaceAll('"', '\\"')}"`;
+const fileList = (files) => files.map(quote).join(' ');
+const frontendBin = (name) =>
+  quote(path.join(FRONTEND, 'node_modules', '.bin', `${name}${WINDOWS ? '.cmd' : ''}`));
+const mavenWrapper = WINDOWS
+  ? `${quote(path.join(BACKEND, 'mvnw.cmd'))} -q -f ${quote(path.join(BACKEND, 'pom.xml'))}`
+  : `${quote(path.join(BACKEND, 'mvnw'))} -q -f ${quote(path.join(BACKEND, 'pom.xml'))}`;
 
 export default {
   // Frontend TypeScript/HTML: ESLint autofix, then Prettier.
   'frontend/**/*.{ts,html}': (files) => {
-    const list = rel(FRONTEND, files);
+    const list = fileList(files);
     return [
-      `bash -c 'cd ${FRONTEND} && npx eslint --fix ${list}'`,
-      `bash -c 'cd ${FRONTEND} && npx prettier --write ${list}'`,
+      `${frontendBin('eslint')} --fix ${list}`,
+      `${frontendBin('prettier')} --write ${list}`,
     ];
   },
 
   // Frontend styles / JSON: Prettier only.
   'frontend/**/*.{scss,css,json}': (files) => {
-    const list = rel(FRONTEND, files);
-    return [`bash -c 'cd ${FRONTEND} && npx prettier --write ${list}'`];
+    return [`${frontendBin('prettier')} --write ${fileList(files)}`];
   },
 
   // Backend Java: run Spotless over the backend module. (Applying module-wide keeps the
   // hook simple and robust; the files are already Spotless-clean so this is a fast no-op,
   // and lint-staged only re-stages the files that were actually part of the commit.)
-  'backend/**/*.java': () => [`bash -c 'cd ${BACKEND} && ./mvnw -q spotless:apply'`],
+  'backend/**/*.java': () => [`${mavenWrapper} spotless:apply`],
 };

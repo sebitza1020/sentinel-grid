@@ -1,0 +1,106 @@
+:host,
+.map-shell,
+.map-container {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.map-shell {
+  position: relative;
+}
+
+.map-container {
+  cursor: crosshair;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 243, 255, 0.08), transparent 48%), #071018;
+}
+
+.map-unavailable {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  color: #ff003c;
+  background:
+    linear-gradient(rgba(7, 16, 24, 0.92), rgba(7, 16, 24, 0.92)),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 0, 60, 0.08) 4px);
+
+  span {
+    color: #89949c;
+    font-size: 0.75rem;
+  }
+}
+
+.altitude-editor {
+  position: absolute;
+  left: 12px;
+  bottom: 84px;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(90px, 1fr));
+  gap: 8px;
+  width: 260px;
+  padding: 12px;
+  border: 1px solid rgba(255, 0, 60, 0.65);
+  background: rgba(7, 16, 24, 0.93);
+  box-shadow: 0 0 18px rgba(255, 0, 60, 0.2);
+  color: #dfe7eb;
+  font-family: 'Courier New', monospace;
+
+  header,
+  button,
+  .altitude-error {
+    grid-column: 1 / -1;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255, 0, 60, 0.3);
+    font-size: 0.66rem;
+    color: #ff718f;
+
+    b {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #00f3ff;
+    }
+  }
+
+  label {
+    display: grid;
+    gap: 4px;
+    color: #7e8b94;
+    font-size: 0.62rem;
+  }
+
+  input {
+    min-width: 0;
+    padding: 7px;
+    border: 1px solid rgba(0, 243, 255, 0.35);
+    background: rgba(0, 0, 0, 0.45);
+    color: #00f3ff;
+    font: inherit;
+  }
+
+  button {
+    padding: 8px;
+    border: 1px solid #ff003c;
+    background: rgba(255, 0, 60, 0.12);
+    color: #ff718f;
+    font:
+      700 0.68rem 'Courier New',
+      monospace;
+    cursor: pointer;
+  }
+}
+
+.altitude-error {
+  color: #ff718f;
+  font-size: 0.6rem;
+}

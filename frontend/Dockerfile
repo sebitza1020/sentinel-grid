@@ -13,6 +13,8 @@ RUN npm run build
 FROM nginx:alpine AS runtime
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.d/40-sentinel-runtime-config.sh /docker-entrypoint.d/40-sentinel-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-sentinel-runtime-config.sh
 COPY --from=build /app/dist/sentinel-dashboard/browser/ /usr/share/nginx/html/
 
 EXPOSE 80

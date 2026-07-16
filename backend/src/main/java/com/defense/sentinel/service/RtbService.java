@@ -4,6 +4,8 @@ import com.defense.sentinel.WeatherDTO;
 import com.defense.sentinel.websocket.TelemetrySocket;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +45,8 @@ public class RtbService {
   @Inject TelemetrySocket telemetrySocket;
 
   @Inject WeatherService weatherService;
+
+  @Inject NavigationService navigationService;
 
   // Starea energetică per dronă (id de callSign). Package-private pentru teste.
   final Map<String, FlightState> flightStates = new ConcurrentHashMap<>();
@@ -99,16 +103,13 @@ public class RtbService {
     if (!"RTB".equals(state.status)
         && !"LANDED".equals(state.status)
         && state.battery < RTB_THRESHOLD) {
-      BaseStation base = closestBase(lat, lng);
-      state.status = "RTB";
-      state.baseLat = base.lat();
-      state.baseLng = base.lng();
-      System.out.println(
-          "[SYSTEM] Critical battery level on "
-              + callSign
-              + ". Initiating Autonomous RTB protocol to closest base station!");
-      telemetrySocket.broadcastPath(
-          callSign, List.of(new double[] {base.lat(), base.lng()}), false, true);
+      double altitude = asDouble(update.get("alt"), 0.0);
+      BaseStation base = engageRtb(callSign, lat, lng, altitude);
+      if (base != null) {
+        state.status = "RTB";
+        state.baseLat = base.lat();
+        state.baseLng = base.lng();
+      }
     }
 
     // Aterizare: am ajuns suficient de aproape de baza asignată.
@@ -126,6 +127,7 @@ public class RtbService {
     if ("RTB".equals(state.status)) {
       update.put("target_lat", state.baseLat);
       update.put("target_lng", state.baseLng);
+      update.put("target_alt", 0.0);
     }
 
     state.lat = lat;
@@ -141,10 +143,51 @@ public class RtbService {
     return 0.0;
   }
 
+  private BaseStation engageRtb(
+      String callSign, double lat, double lng, double altitude) {
+    List<BaseStation> candidates = new ArrayList<>(BASES);
+    candidates.sort(
+        Comparator.comparingDouble(base -> haversine(lat, lng, base.lat(), base.lng())));
+
+    for (BaseStation base : candidates) {
+      try {
+        List<double[]> route =
+            navigationService.route(
+                new double[] {lat, lng, Math.max(0.0, altitude)},
+                new double[] {base.lat(), base.lng(), 0.0});
+        System.out.println(
+            "[SYSTEM] Critical battery level on "
+                + callSign
+                + ". Initiating Autonomous RTB protocol to "
+                + base.name()
+                + "!");
+        telemetrySocket.broadcastPath(callSign, route, false, true);
+        return base;
+      } catch (RouteBlockedException e) {
+        System.out.println(
+            "[SYSTEM] "
+                + base.name()
+                + " is unreachable for "
+                + callSign
+                + "; trying the next recovery point.");
+      }
+    }
+
+    System.err.println(
+        "[SYSTEM] No safe RTB route is available for "
+            + callSign
+            + "; holding current position.");
+    return null;
+  }
+
   private static void writeBattery(Map<String, Object> update, double battery) {
     int rounded = (int) Math.round(battery);
     update.put("battery", rounded);
     update.put("batt", rounded);
+  }
+
+  private static double asDouble(Object value, double fallback) {
+    return value instanceof Number ? ((Number) value).doubleValue() : fallback;
   }
 
   // --- Pure, testable helpers ---

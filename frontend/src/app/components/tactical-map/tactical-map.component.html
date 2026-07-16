@@ -1,0 +1,25 @@
+<div class="map-shell">
+  <div #mapContainer id="map" class="map-container" [class.map-ready]="mapReady"></div>
+
+  <div class="map-unavailable" *ngIf="mapUnavailable">
+    <strong>3D TACTICAL MAP OFFLINE</strong>
+    <span>MAPBOX_ACCESS_TOKEN is not configured.</span>
+  </div>
+
+  <form class="altitude-editor" *ngIf="selectedZoneId" (ngSubmit)="applyAltitudeBand()">
+    <header>
+      <span>RESTRICTED VOLUME</span>
+      <b>{{ selectedZoneId }}</b>
+    </header>
+    <label>
+      MIN AGL
+      <input name="minAltitude" type="number" min="0" step="10" [(ngModel)]="selectedMinAltitude" />
+    </label>
+    <label>
+      MAX AGL
+      <input name="maxAltitude" type="number" min="1" step="10" [(ngModel)]="selectedMaxAltitude" />
+    </label>
+    <button type="submit">APPLY VOLUME</button>
+    <span class="altitude-error" *ngIf="altitudeError">{{ altitudeError }}</span>
+  </form>
+</div>

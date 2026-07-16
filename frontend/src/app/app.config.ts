@@ -7,6 +7,6 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideHttpClient(withInterceptors([authInterceptor])),
-    provideCharts(withDefaultRegisterables())
-  ]
+    provideCharts(withDefaultRegisterables()),
+  ],
 };

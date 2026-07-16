@@ -1,43 +1,89 @@
-/* Importăm CSS-ul Leaflet direct */
-@import 'leaflet/dist/leaflet.css';
-/* Leaflet Draw (No-Fly Zone sketching) */
-@import 'leaflet-draw/dist/leaflet.draw.css';
-
-/* Cyberpunk overrides for the Leaflet Draw toolbar */
-.leaflet-draw-toolbar a {
-  background-color: rgba(10, 16, 22, 0.85);
-  border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+/* Mapbox mounts controls, markers, and popups outside Angular's component-scoped styling. */
+.mapboxgl-ctrl-group {
+  overflow: hidden;
+  border: 1px solid rgba(0, 243, 255, 0.35);
+  border-radius: 2px;
+  background: rgba(8, 15, 22, 0.94);
+  box-shadow: 0 0 14px rgba(0, 243, 255, 0.16);
 }
-.leaflet-draw-toolbar a:hover {
-  background-color: rgba(0, 243, 255, 0.2);
+.mapboxgl-ctrl-group button {
+  filter: invert(88%) sepia(93%) saturate(2027%) hue-rotate(131deg) brightness(105%);
 }
-.leaflet-draw-actions a {
-  background: rgba(10, 16, 22, 0.95);
-  color: #00f3ff;
+.mapboxgl-ctrl-group button + button {
+  border-top-color: rgba(0, 243, 255, 0.2);
 }
-
-/* Leaflet mounts popups outside Angular's component tree, so dossier styling lives globally. */
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
+.mapboxgl-popup-content,
+.mapboxgl-popup-tip {
   background: rgba(8, 15, 22, 0.97);
   color: #e0e0e0;
 }
-.leaflet-popup-content-wrapper {
+.mapboxgl-popup-content {
   border: 1px solid rgba(0, 243, 255, 0.4);
   border-radius: 3px;
   box-shadow: 0 0 18px rgba(0, 243, 255, 0.18);
+  padding: 14px;
 }
-.leaflet-popup-content {
-  margin: 14px;
-}
-.leaflet-tooltip {
-  background: rgba(8, 15, 22, 0.92);
-  border: 1px solid rgba(0, 243, 255, 0.45);
+.mapboxgl-popup-close-button {
   color: #00f3ff;
+  font-size: 18px;
+}
+.sentinel-drone-marker {
+  --unit-color: #00f3ff;
+  position: relative;
+  width: 54px;
+  height: 54px;
+  color: var(--unit-color);
+  cursor: pointer;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--unit-color) 75%, transparent));
+  transition:
+    filter 0.2s ease,
+    transform 0.2s ease;
+}
+.sentinel-drone-marker:hover,
+.sentinel-drone-marker:focus-visible {
+  outline: none;
+  filter: drop-shadow(0 0 14px var(--unit-color));
+  transform: scale(1.12);
+}
+.sentinel-drone-marker svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.sentinel-drone-marker .unit-wing {
+  fill: color-mix(in srgb, var(--unit-color) 18%, rgba(4, 12, 18, 0.9));
+  stroke: var(--unit-color);
+  stroke-width: 2;
+}
+.sentinel-drone-marker circle {
+  fill: var(--unit-color);
+}
+.sentinel-drone-marker .unit-reticle {
+  fill: none;
+  stroke: var(--unit-color);
+  stroke-width: 1.5;
+  opacity: 0.8;
+}
+.sentinel-drone-marker .unit-altitude {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  padding: 2px 5px;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--unit-color) 55%, transparent);
+  background: rgba(4, 12, 18, 0.88);
+  color: var(--unit-color);
   font:
-    0.7rem 'Courier New',
+    0.58rem 'Courier New',
     monospace;
-  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.mapbox-gl-draw_ctrl-draw-btn {
+  background-color: rgba(8, 15, 22, 0.94);
+}
+.mapbox-gl-draw_polygon,
+.mapbox-gl-draw_trash {
+  filter: invert(88%) sepia(93%) saturate(2027%) hue-rotate(131deg) brightness(105%);
 }
 .drone-popup {
   min-width: 270px;
@@ -116,31 +162,26 @@
   font-size: 0.67rem;
   font-style: italic;
 }
-
-/* Fleet Commander reinforcement route: red path whose dashes "flow" toward the threat */
-.reinforce-path {
-  animation: dash-flow 1s linear infinite;
-  filter: drop-shadow(0 0 4px rgba(255, 0, 60, 0.7));
+.drone-popup-recon {
+  position: relative;
+  margin-top: 10px;
 }
-@keyframes dash-flow {
-  to {
-    stroke-dashoffset: -30;
-  }
+.drone-popup-recon img {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  border: 2px solid var(--unit-accent);
+  border-radius: 3px;
+  background: #111;
 }
-
-/* Autonomous RTB route: flashing amber path signalling an emergency landing sequence */
-.rtb-path {
-  animation: rtb-flash 0.8s ease-in-out infinite;
-  filter: drop-shadow(0 0 5px rgba(255, 179, 0, 0.8));
-}
-@keyframes rtb-flash {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.2;
-  }
+.drone-popup-recon span {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 5px;
+  background: rgba(0, 0, 0, 0.72);
+  color: var(--unit-accent);
+  font-size: 0.58rem;
 }
 
 body,
