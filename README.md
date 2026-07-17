@@ -44,6 +44,21 @@ Built with a microservices architecture, it leverages **Quarkus** for high-perfo
 ![Autonomous Tactical View](screenshots/tactical_dashboard.png)
 *The live tactical view showing the newer autonomous systems at once: a **No-Fly Zone** (red polygon), an **AI Fleet Commander** reinforcement route (red dashed — a SAFE unit vectored onto a THREAT contact), and an **Autonomous RTB** route (amber) for a critically-low unit returning to base.*
 
+### 7. Omniscience v3.5 — 3D Tactical Command
+
+![3D Tactical Command](screenshots/omniscience_tactical.png)
+*The Mapbox GL command view: the winged radar-shield emblem in the HUD, a **volumetric No-Fly Zone** prism (extruded to its AGL ceiling), altitude-labeled winged unit markers, live reinforcement (red) and RTB (amber) routes, and the Black Box tracking all 21 fleet units.*
+
+### 8. Expanded Fleet Catalog & Dossiers
+
+![Fleet Dossiers](screenshots/fleet_dossiers.png)
+*The 21-unit tactical fleet across Recon / Interceptor / Heavy Support classes. Each dossier expands to its full spec sheet — class, top speed, radar range, payload capacity, battery, and active vision modes.*
+
+### 9. Voice Command Interface
+
+![Voice Command](screenshots/voice_command.png)
+*Commander-only hands-free control: a spoken order is transcribed, parsed by the AI into a validated `MOVE` intent, and accepted by fleet control ("RAZOR-12 // MOVE ORDER ACCEPTED").*
+
 ---
 
 ## 🏗️ System Architecture
@@ -56,13 +71,15 @@ The system follows a hybrid architecture designed for low latency, real-time rea
     * Manages the fleet and simulation via REST API.
     * Streams live position, path, and status updates over a **native WebSocket** (`/ws/telemetry`).
     * Lets operators sketch and edit volumetric **No-Fly Zones** with per-zone AGL limits.
+    * Accepts hands-free **voice commands** (Web Speech API) that the backend AI turns into fleet orders.
 
 2.  **Backend (Java 21 / Quarkus):**
-    * Exposes REST endpoints for Fleet Management (CRUD), Telemetry Ingestion, Navigation, Geofencing, and Analytics.
-    * Persists fleet inventory in **PostgreSQL (Neon DB)** via Hibernate/Panache.
+    * Exposes REST endpoints for Fleet Management (CRUD), Telemetry Ingestion, Navigation, Geofencing, Analytics, and Voice Command.
+    * Persists fleet inventory in **PostgreSQL (Neon DB)** via Hibernate/Panache, with **Flyway**-owned schema migrations (Hibernate runs in `validate` mode).
     * **Hybrid AI Router:** Forwards unstructured drone reports to either a **local Ollama** model or the **hosted Groq** API, selected per-environment via the `sentinel.ai.engine` property.
     * **Reactive Broadcast:** Fans out processed telemetry to all connected dashboards over a Jakarta **WebSocket** endpoint.
-    * **Autonomous Agents:** Reroutes drones to reinforce detected threats (Fleet Commander) and to return home when battery is critical (RTB engine).
+    * **Autonomous Agents:** Reroutes drones to reinforce detected threats (Fleet Commander) and to return home when battery is critical (RTB engine) — both plan through the 3D route planner and skip airspace they cannot safely cross.
+    * **Voice Command Ingress:** A commander-only `/api/fleet/command-voice` endpoint parses a spoken transcript through the AI router into a validated `MOVE` order and dispatches a geofence-safe route.
     * **Atmospheric Sensors:** Proxies live Bucharest weather from **Open-Meteo** through `/api/weather` with a server-side TTL cache (stale-on-error fallback).
 
 3.  **Alerting Layer:**
@@ -77,12 +94,14 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 * **Language:** Java 21
 * **Framework:** Quarkus 3.30 (Supersonic Subatomic Java)
 * **Database:** PostgreSQL (managed by Neon.tech), Hibernate ORM with Panache
+* **Schema Migrations:** Flyway (schema-of-record; Hibernate in `validate` mode) + Hibernate Validator
 * **Real-time:** Jakarta WebSockets (`quarkus-websockets`, `@ServerEndpoint`)
 * **AI Clients:** MicroProfile REST Client (Ollama + Groq, OpenAI-compatible)
 * **Weather Data:** Open-Meteo API (cached via `/api/weather`)
-* **PDF Reporting:** OpenPDF (tactical mission debriefs)
+* **PDF Reporting:** OpenPDF (tactical mission debriefs, with vector branding)
 * **Code Style:** Spotless (Google-style import ordering, unused-import removal)
-* **Containerization:** Docker
+* **Containerization:** Multi-stage Docker (Quarkus fast-jar + nginx), published to GHCR
+* **CI/CD:** GitHub Actions (build · lint · test · Playwright E2E · image publish)
 * **Hosting:** Render.com (Cloud Deployment)
 
 ### Frontend
@@ -90,8 +109,10 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 * **Framework:** Angular 21 (Standalone Components, Zoneless change detection)
 * **Styling:** SCSS (Cyberpunk/Military aesthetic)
 * **Mapping:** Mapbox GL JS 3, Terrain DEM, 3D building extrusions, and Mapbox Draw
+* **Voice:** Native Web Speech API (browser speech recognition)
 * **Real-time:** RxJS `webSocket()` over `/ws/telemetry`
 * **Analytics:** Chart.js + ng2-charts (real-time fleet charts)
+* **E2E Testing:** Playwright (Chromium)
 
 ### Artificial Intelligence
 
@@ -105,7 +126,8 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 
 ### Core Surveillance
 
-* **Fleet Management (CRUD):** Deploy and decommission drones via a secured Admin Sidebar.
+* **Fleet Management (CRUD):** Deploy and decommission drones via a secured Admin Sidebar, with validated dossier fields on every deployment.
+* **Expanded Fleet Catalog & Dossiers:** A Flyway-seeded catalog of 21 UAVs across three classes (**Recon**, **Interceptor**, **Heavy Support**), each carrying real specs — top speed, radar range, payload capacity, and vision modes (Thermal / Infrared / Low-Light / Hyperspectral). The dashboard renders expandable per-unit dossier cards and matching 3D map popups.
 * **Autonomous Simulation:** "Play" mode that generates GPS paths and randomized field reports (e.g., "Sector Clear" vs "Armed Convoy").
 * **AI-Powered Analysis:** Drones send text reports, not just coordinates. A hybrid Ollama/Groq router reads them and assigns the threat level automatically.
 * **Reactive Radar (Live Telemetry):** Position, path, and status updates stream to every connected dashboard over a native WebSocket (`/ws/telemetry`) — no polling, sub-second latency.
@@ -117,6 +139,11 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 * **AI Fleet Commander:** On a `THREAT` verdict, the closest available drone (chosen by Haversine distance, filtered by battery and threat state) is autonomously rerouted to reinforce the contact — rendered as a red, flowing reinforcement path.
 * **Autonomous Emergency RTB:** A backend energy-decay engine drains battery from base load, speed, and live wind. When a unit drops below the critical threshold it is autonomously routed to the nearest base station (`status = RTB`), rendered as an amber flashing landing route, then lands and recharges.
 
+### Command Interfaces
+
+* **Voice Command Interface (VCI):** A commander-only, hands-free control channel. The browser's Web Speech API captures a spoken order; the transcript is parsed by the hybrid Ollama/Groq AI into a validated `MOVE` intent (call sign + coordinates, both checked against the live fleet), then executed as a geofence-safe route over the telemetry WebSocket. The endpoint is protected by `@RolesAllowed("COMMANDER")`, and the AI output is treated as untrusted until every field passes deterministic validation.
+* **Official Branding:** A cyberpunk winged radar-shield emblem in the HUD (animated SVG with a rotating radar sweep and reduced-motion support), carried through to the exported Mission Debrief PDF as matching vector geometry.
+
 ### Intelligence & Reporting
 
 * **"Black Box" Analytics:** A real-time panel below the map — a SAFE/THREAT doughnut, per-unit battery bars (amber while in RTB), and live stats — recomputed as telemetry streams in.
@@ -127,7 +154,7 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 
 * **Optimistic UI:** Instant visual feedback for fleet operations.
 * **Resilient Connectivity:** CORS-configured, SSL-secured communication between distributed services.
-* **CI/CD Guardrails ("Iron Gate"):** Husky + lint-staged pre-commit hooks (Spotless on the backend, ESLint/Prettier on the frontend) plus a GitHub Actions pipeline running parallel **Backend (Quarkus / Java 21)** and **Frontend (Angular 21)** builds, format checks, and tests on every PR to `main`.
+* **CI/CD Pipeline ("Iron Gate" → "Omniscience"):** Husky + lint-staged pre-commit hooks (Spotless on the backend, ESLint/Prettier on the frontend) plus a GitHub Actions pipeline: parallel **Backend (Quarkus / Java 21)** and **Frontend (Angular 21)** build/format/test jobs, a **Playwright/Chromium E2E** smoke suite, and multi-stage **Docker** image builds that publish backend + frontend images to the **GitHub Container Registry (GHCR)** on every merge to `main`.
 
 ---
 
@@ -136,7 +163,10 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 | Endpoint | Purpose |
 | --- | --- |
 | `GET  /api/drones` | List the fleet. |
+| `POST /api/drones` | Enlist a new drone (validated dossier). |
+| `PUT / DELETE /api/drones/{id}` | Update or decommission a drone (JWT `COMMANDER`). |
 | `POST /api/drones/{callSign}/ping` | Ingest a drone telemetry tick (drives AI, RTB, and broadcast). |
+| `POST /api/fleet/command-voice` | Commander-only voice `MOVE` order (JWT `COMMANDER`). |
 | `GET  /api/weather` | Cached Bucharest weather (Atmospheric Sensors). |
 | `POST /api/navigation/route` | Compute a 3D `[lat,lng,altitude]` evasion route around active restricted volumes. |
 | `GET / POST /api/geofences` | List and replace volumetric No-Fly Zones. |
@@ -150,7 +180,8 @@ The system follows a hybrid architecture designed for low latency, real-time rea
 ### Prerequisites
 
 * Java 21+ & Maven
-* Node.js 20+ & Angular CLI
+* Node.js 22+ & Angular CLI
+* A Mapbox **public** access token (URL-restricted) for the 3D map
 * Docker (optional, for containerized run)
 
 ### 1. Backend Setup
